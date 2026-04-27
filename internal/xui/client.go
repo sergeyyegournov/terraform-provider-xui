@@ -32,6 +32,12 @@ type Client struct {
 	inboundMus  map[int]*sync.Mutex
 }
 
+// StatusPublicIP is a subset of /panel/api/server/status payload.
+type StatusPublicIP struct {
+	IPv4 string
+	IPv6 string
+}
+
 // NewClient builds an HTTP client; baseURL must include the panel path prefix (e.g. https://host:port/<uuid>/).
 func NewClient(rawBaseURL, username, password string, insecureSkipVerify bool) (*Client, error) {
 	u, err := url.Parse(rawBaseURL)
@@ -396,4 +402,25 @@ func (c *Client) UpdatePanelSettings(settings map[string]any) error {
 func (c *Client) RestartPanel() error {
 	_, err := c.postJSON([]string{"panel", "setting", "restartPanel"}, map[string]any{})
 	return err
+}
+
+// GetStatusPublicIP reads /panel/api/server/status and returns public IPs.
+func (c *Client) GetStatusPublicIP() (StatusPublicIP, error) {
+	msg, err := c.get([]string{"panel", "api", "server", "status"})
+	if err != nil {
+		return StatusPublicIP{}, err
+	}
+	var payload struct {
+		PublicIP struct {
+			IPv4 string `json:"ipv4"`
+			IPv6 string `json:"ipv6"`
+		} `json:"publicIP"`
+	}
+	if err := json.Unmarshal(msg.Obj, &payload); err != nil {
+		return StatusPublicIP{}, fmt.Errorf("decode status payload: %w", err)
+	}
+	return StatusPublicIP{
+		IPv4: payload.PublicIP.IPv4,
+		IPv6: payload.PublicIP.IPv6,
+	}, nil
 }

@@ -49,6 +49,14 @@ func (r *xrayTemplateResource) Schema(_ context.Context, _ resource.SchemaReques
 				WriteOnly:           true,
 				MarkdownDescription: "If true, call `POST /panel/api/server/restartXrayService` after updating template.",
 			},
+			"public_ipv4": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Public IPv4 reported by x-ui status endpoint.",
+			},
+			"public_ipv6": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Public IPv6 reported by x-ui status endpoint.",
+			},
 		},
 	}
 }
@@ -66,9 +74,11 @@ func (r *xrayTemplateResource) Configure(_ context.Context, req resource.Configu
 }
 
 type xrayTemplateModel struct {
-	ID          types.String       `tfsdk:"id"`
+	ID          types.String         `tfsdk:"id"`
 	JSON        jsontypes.Normalized `tfsdk:"json"`
-	RestartXray types.Bool         `tfsdk:"restart_xray"`
+	RestartXray types.Bool           `tfsdk:"restart_xray"`
+	PublicIPv4  types.String         `tfsdk:"public_ipv4"`
+	PublicIPv6  types.String         `tfsdk:"public_ipv6"`
 }
 
 func (r *xrayTemplateResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -93,6 +103,13 @@ func (r *xrayTemplateResource) Create(ctx context.Context, req resource.CreateRe
 	}
 	plan.ID = types.StringValue("xray-template")
 	plan.RestartXray = types.BoolNull()
+	status, err := r.client.GetStatusPublicIP()
+	if err != nil {
+		resp.Diagnostics.AddError("API error", err.Error())
+		return
+	}
+	plan.PublicIPv4 = types.StringValue(status.IPv4)
+	plan.PublicIPv6 = types.StringValue(status.IPv6)
 	// plan.JSON is stored verbatim; the attribute uses jsontypes.Normalized
 	// which compares values by semantic JSON equality, so whitespace /
 	// ordering differences between the user's config and what the panel
@@ -113,6 +130,13 @@ func (r *xrayTemplateResource) Read(ctx context.Context, req resource.ReadReques
 	}
 	state.JSON = jsontypes.NewNormalizedValue(raw)
 	state.RestartXray = types.BoolNull()
+	status, err := r.client.GetStatusPublicIP()
+	if err != nil {
+		resp.Diagnostics.AddError("API error", err.Error())
+		return
+	}
+	state.PublicIPv4 = types.StringValue(status.IPv4)
+	state.PublicIPv6 = types.StringValue(status.IPv6)
 	if state.ID.IsNull() || state.ID.ValueString() == "" {
 		state.ID = types.StringValue("xray-template")
 	}
@@ -141,6 +165,13 @@ func (r *xrayTemplateResource) Update(ctx context.Context, req resource.UpdateRe
 	}
 	plan.ID = types.StringValue("xray-template")
 	plan.RestartXray = types.BoolNull()
+	status, err := r.client.GetStatusPublicIP()
+	if err != nil {
+		resp.Diagnostics.AddError("API error", err.Error())
+		return
+	}
+	plan.PublicIPv4 = types.StringValue(status.IPv4)
+	plan.PublicIPv6 = types.StringValue(status.IPv6)
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -163,5 +194,12 @@ func (r *xrayTemplateResource) ImportState(ctx context.Context, _ resource.Impor
 		JSON:        jsontypes.NewNormalizedValue(raw),
 		RestartXray: types.BoolNull(),
 	}
+	status, err := r.client.GetStatusPublicIP()
+	if err != nil {
+		resp.Diagnostics.AddError("API error", err.Error())
+		return
+	}
+	state.PublicIPv4 = types.StringValue(status.IPv4)
+	state.PublicIPv6 = types.StringValue(status.IPv6)
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 }
