@@ -98,8 +98,6 @@ resource "xui_xray_template" "example" {
 ### Read-Only
 
 - `id` (String) Static resource id (`xray-template`).
-- `public_ipv4` (String) Public IPv4 reported by x-ui status endpoint.
-- `public_ipv6` (String) Public IPv6 reported by x-ui status endpoint.
 
 ## Import
 

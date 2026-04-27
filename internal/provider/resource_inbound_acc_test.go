@@ -29,6 +29,8 @@ func TestAccInbound_basic(t *testing.T) {
 					resource.TestCheckResourceAttrSet("xui_inbound.test", "id"),
 					resource.TestCheckResourceAttrSet("xui_inbound.test", "tag"),
 					resource.TestCheckResourceAttrSet("xui_inbound.test", "dummy_client_uuid"),
+					testCheckResourceAttrPresent("xui_inbound.test", "public_ipv4"),
+					testCheckResourceAttrPresent("xui_inbound.test", "public_ipv6"),
 				),
 			},
 			{
@@ -105,6 +107,8 @@ func TestAccInbound_importWithoutSentinel(t *testing.T) {
 					resource.TestCheckResourceAttrSet("xui_inbound.adopted", "dummy_client_uuid"),
 					resource.TestCheckResourceAttr("xui_inbound.adopted", "remark", remark),
 					resource.TestCheckResourceAttr("xui_inbound.adopted", "port", strconv.Itoa(port)),
+					testCheckResourceAttrPresent("xui_inbound.adopted", "public_ipv4"),
+					testCheckResourceAttrPresent("xui_inbound.adopted", "public_ipv6"),
 					// Assert the sentinel landed on the panel too (not only in TF state).
 					func(*terraform.State) error {
 						has, err := inboundHasSentinelClient(preCreatedID)
@@ -174,4 +178,17 @@ resource "xui_inbound" "test" {
   sniffing = jsonencode({ enabled = false, destOverride = ["http", "tls"] })
 }
 `, providerConfig(), remark, port)
+}
+
+func testCheckResourceAttrPresent(resourceName, attr string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+		if _, ok := rs.Primary.Attributes[attr]; !ok {
+			return fmt.Errorf("attribute %q not present", attr)
+		}
+		return nil
+	}
 }

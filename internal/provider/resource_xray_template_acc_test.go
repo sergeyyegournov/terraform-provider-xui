@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
@@ -36,8 +35,6 @@ func TestAccXrayTemplate_basic(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("xui_xray_template.test", "id", "xray-template"),
 					resource.TestCheckResourceAttrSet("xui_xray_template.test", "json"),
-					testCheckResourceAttrPresent("xui_xray_template.test", "public_ipv4"),
-					testCheckResourceAttrPresent("xui_xray_template.test", "public_ipv6"),
 				),
 			},
 			{
@@ -72,17 +69,4 @@ EOT
   restart_xray = false
 }
 `, providerConfig(), templateJSON)
-}
-
-func testCheckResourceAttrPresent(resourceName, attr string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[resourceName]
-		if !ok {
-			return fmt.Errorf("resource not found: %s", resourceName)
-		}
-		if _, ok := rs.Primary.Attributes[attr]; !ok {
-			return fmt.Errorf("attribute %q not present", attr)
-		}
-		return nil
-	}
 }

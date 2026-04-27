@@ -125,6 +125,14 @@ func (r *inboundResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"public_ipv4": schema.StringAttribute{
+				MarkdownDescription: "Public IPv4 reported by x-ui status endpoint.",
+				Computed:            true,
+			},
+			"public_ipv6": schema.StringAttribute{
+				MarkdownDescription: "Public IPv6 reported by x-ui status endpoint.",
+				Computed:            true,
+			},
 		},
 	}
 }
@@ -156,6 +164,8 @@ type inboundModel struct {
 	Sniffing       jsontypes.Normalized `tfsdk:"sniffing"`
 	Tag            types.String         `tfsdk:"tag"`
 	DummyClientID  types.String         `tfsdk:"dummy_client_uuid"`
+	PublicIPv4     types.String         `tfsdk:"public_ipv4"`
+	PublicIPv6     types.String         `tfsdk:"public_ipv6"`
 }
 
 func (r *inboundResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -217,6 +227,13 @@ func (r *inboundResource) Create(ctx context.Context, req resource.CreateRequest
 	if dummyUUID, err := findDummyClientUUID(stringFromMap(m, "settings")); err == nil && dummyUUID != "" {
 		plan.DummyClientID = types.StringValue(dummyUUID)
 	}
+	status, err := r.client.GetStatusPublicIP()
+	if err != nil {
+		resp.Diagnostics.AddError("API error", err.Error())
+		return
+	}
+	plan.PublicIPv4 = types.StringValue(status.IPv4)
+	plan.PublicIPv6 = types.StringValue(status.IPv6)
 	// Deliberately leave plan.Settings untouched: Terraform's post-apply
 	// consistency check requires state to equal the planned value, and the
 	// planned value is the user's config (no sentinel client). The
@@ -278,6 +295,13 @@ func (r *inboundResource) Read(ctx context.Context, req resource.ReadRequest, re
 	if dummyUUID, err := findDummyClientUUID(stringFromMap(m, "settings")); err == nil && dummyUUID != "" {
 		state.DummyClientID = types.StringValue(dummyUUID)
 	}
+	status, err := r.client.GetStatusPublicIP()
+	if err != nil {
+		resp.Diagnostics.AddError("API error", err.Error())
+		return
+	}
+	state.PublicIPv4 = types.StringValue(status.IPv4)
+	state.PublicIPv6 = types.StringValue(status.IPv6)
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 }
 
@@ -324,6 +348,13 @@ func (r *inboundResource) Update(ctx context.Context, req resource.UpdateRequest
 		if dummyUUID, err := findDummyClientUUID(stringFromMap(cur, "settings")); err == nil {
 			state.DummyClientID = types.StringValue(dummyUUID)
 		}
+		status, err := r.client.GetStatusPublicIP()
+		if err != nil {
+			resp.Diagnostics.AddError("API error", err.Error())
+			return
+		}
+		state.PublicIPv4 = types.StringValue(status.IPv4)
+		state.PublicIPv6 = types.StringValue(status.IPv6)
 		resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 		return
 	}
@@ -383,6 +414,13 @@ func (r *inboundResource) Update(ctx context.Context, req resource.UpdateRequest
 			}
 		}
 	}
+	status, err := r.client.GetStatusPublicIP()
+	if err != nil {
+		resp.Diagnostics.AddError("API error", err.Error())
+		return
+	}
+	state.PublicIPv4 = types.StringValue(status.IPv4)
+	state.PublicIPv6 = types.StringValue(status.IPv6)
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 }
 

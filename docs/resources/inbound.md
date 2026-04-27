@@ -58,6 +58,8 @@ resource "xui_inbound" "example" {
 
 - `dummy_client_uuid` (String) UUID of provider-managed reserved inbound client (`__xui_tf_do_not_delete__`) used to satisfy panel APIs that require at least one client.
 - `id` (Number) Inbound id assigned by the panel (use with `terraform import xui_inbound.NAME ID`).
+- `public_ipv4` (String) Public IPv4 reported by x-ui status endpoint.
+- `public_ipv6` (String) Public IPv6 reported by x-ui status endpoint.
 - `tag` (String) Inbound tag assigned by the panel (e.g. `inbound-443`). Read-only.
 
 ## Import
