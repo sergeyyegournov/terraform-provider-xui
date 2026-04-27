@@ -3,12 +3,12 @@
 page_title: "xui_vless_client Resource - xui"
 subcategory: ""
 description: |-
-  VLESS user (client) on an existing 3x-ui inbound. Uses /panel/api/inbounds/addClient and related routes.
+  VLESS user (client) on an existing 3x-ui inbound. Because the panel's addClient / updateClient / delClient endpoints are stubs in current 3x-ui releases (they either no-op or crash), this resource manages clients by reading the parent inbound, patching its settings.clients array, and pushing the whole inbound back through /panel/api/inbounds/update. The provider holds an in-process, per-inbound mutex for the duration of each mutation so parallel for_each instances can't race.
 ---
 
 # xui_vless_client (Resource)
 
-VLESS user (client) on an existing 3x-ui inbound. Uses `/panel/api/inbounds/addClient` and related routes.
+VLESS user (client) on an existing 3x-ui inbound. Because the panel's `addClient` / `updateClient` / `delClient` endpoints are stubs in current 3x-ui releases (they either no-op or crash), this resource manages clients by reading the parent inbound, patching its `settings.clients` array, and pushing the whole inbound back through `/panel/api/inbounds/update`. The provider holds an in-process, per-inbound mutex for the duration of each mutation so parallel `for_each` instances can't race.
 
 ## Example Usage
 

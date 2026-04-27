@@ -34,5 +34,5 @@ data "xui_inbound" "example" {
 - `protocol` (String) Xray protocol (e.g. vless, vmess).
 - `remark` (String)
 - `settings` (String) Raw VLESS/Trojan/etc. `settings` JSON string from the panel.
-- `sniffing` (String) Raw `sniffing` JSON string.
-- `stream_settings` (String) Raw `streamSettings` JSON string.
+- `sniffing` (String) Raw `sniffing` JSON string. Compared with JSON semantic equality.
+- `stream_settings` (String) Raw `streamSettings` JSON string. Compared with JSON semantic equality.

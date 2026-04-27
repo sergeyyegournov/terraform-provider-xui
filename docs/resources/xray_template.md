@@ -87,15 +87,19 @@ resource "xui_xray_template" "example" {
 
 ### Required
 
-- `json` (String) Full Xray template JSON body sent to 3x-ui `POST /panel/xray/update` as `xraySetting`.
+- `json` (String) Full Xray template JSON body sent to 3x-ui `POST /panel/xray/update` as `xraySetting`. The attribute uses semantic JSON equality, so whitespace and key-order differences between the config and the panel's stored value are not reported as drift.
 
 ### Optional
 
-- `restart_xray` (Boolean) If true, call `POST /panel/api/server/restartXrayService` after updating template.
+> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
+
+- `restart_xray` (Boolean, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) If true, call `POST /panel/api/server/restartXrayService` after updating template.
 
 ### Read-Only
 
 - `id` (String) Static resource id (`xray-template`).
+- `public_ipv4` (String) Public IPv4 reported by x-ui status endpoint.
+- `public_ipv6` (String) Public IPv6 reported by x-ui status endpoint.
 
 ## Import
 
