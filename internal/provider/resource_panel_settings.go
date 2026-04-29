@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/syegournov/xkeen-gen/terraform-provider-xui/internal/xui"
@@ -752,15 +753,24 @@ func (r *panelSettingsResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 	payload := r.modelToPayload(&plan)
+	tflog.Info(ctx, "xui_panel_settings create prepared payload")
 	if err := r.client.UpdatePanelSettings(payload); err != nil {
 		resp.Diagnostics.AddError("API error", err.Error())
 		return
 	}
+	tflog.Info(ctx, "xui_panel_settings create updatePanelSettings succeeded")
+	tflog.Info(ctx, "xui_panel_settings create restart_panel evaluated", map[string]any{
+		"restart_panel_null":  plan.RestartPanel.IsNull(),
+		"restart_panel_value": !plan.RestartPanel.IsNull() && plan.RestartPanel.ValueBool(),
+	})
 	if !plan.RestartPanel.IsNull() && plan.RestartPanel.ValueBool() {
+		tflog.Info(ctx, "xui_panel_settings create attempting panel restart")
 		if err := r.client.RestartPanel(); err != nil {
+			tflog.Error(ctx, "xui_panel_settings create panel restart failed", map[string]any{"error": err.Error()})
 			resp.Diagnostics.AddError("Panel restart failed", fmt.Sprintf("`restart_panel = true` was requested but panel restart failed: %s", err.Error()))
 			return
 		}
+		tflog.Info(ctx, "xui_panel_settings create panel restart succeeded")
 	}
 	plan.ID = types.StringValue("panel-settings")
 	plan.RestartPanel = types.BoolNull()
@@ -793,15 +803,24 @@ func (r *panelSettingsResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 	payload := r.modelToPayload(&plan)
+	tflog.Info(ctx, "xui_panel_settings update prepared payload")
 	if err := r.client.UpdatePanelSettings(payload); err != nil {
 		resp.Diagnostics.AddError("API error", err.Error())
 		return
 	}
+	tflog.Info(ctx, "xui_panel_settings update updatePanelSettings succeeded")
+	tflog.Info(ctx, "xui_panel_settings update restart_panel evaluated", map[string]any{
+		"restart_panel_null":  plan.RestartPanel.IsNull(),
+		"restart_panel_value": !plan.RestartPanel.IsNull() && plan.RestartPanel.ValueBool(),
+	})
 	if !plan.RestartPanel.IsNull() && plan.RestartPanel.ValueBool() {
+		tflog.Info(ctx, "xui_panel_settings update attempting panel restart")
 		if err := r.client.RestartPanel(); err != nil {
+			tflog.Error(ctx, "xui_panel_settings update panel restart failed", map[string]any{"error": err.Error()})
 			resp.Diagnostics.AddError("Panel restart failed", fmt.Sprintf("`restart_panel = true` was requested but panel restart failed: %s", err.Error()))
 			return
 		}
+		tflog.Info(ctx, "xui_panel_settings update panel restart succeeded")
 	}
 	plan.ID = types.StringValue("panel-settings")
 	plan.RestartPanel = types.BoolNull()
