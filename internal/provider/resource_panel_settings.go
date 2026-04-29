@@ -773,7 +773,6 @@ func (r *panelSettingsResource) Create(ctx context.Context, req resource.CreateR
 		tflog.Info(ctx, "xui_panel_settings create panel restart succeeded")
 	}
 	plan.ID = types.StringValue("panel-settings")
-	plan.RestartPanel = types.BoolValue(false)
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -789,7 +788,6 @@ func (r *panelSettingsResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 	r.apiToModel(m, &state)
-	state.RestartPanel = types.BoolValue(false)
 	if state.ID.IsNull() || state.ID.ValueString() == "" {
 		state.ID = types.StringValue("panel-settings")
 	}
@@ -822,7 +820,6 @@ func (r *panelSettingsResource) Update(ctx context.Context, req resource.UpdateR
 		tflog.Info(ctx, "xui_panel_settings update panel restart succeeded")
 	}
 	plan.ID = types.StringValue("panel-settings")
-	plan.RestartPanel = types.BoolValue(false)
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
