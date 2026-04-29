@@ -487,9 +487,10 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 
 			// Restart
 			"restart_panel": schema.BoolAttribute{
-				MarkdownDescription: "If true, restart the panel after applying changes. Required for web listen/port/cert changes to take effect.",
+				MarkdownDescription: "If true, restart the panel after applying settings changes. Required for web listen/port/cert changes to take effect.",
 				Optional:            true,
-				WriteOnly:           true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
 			},
 		},
 	}
@@ -760,11 +761,10 @@ func (r *panelSettingsResource) Create(ctx context.Context, req resource.CreateR
 	}
 	tflog.Info(ctx, "xui_panel_settings create updatePanelSettings succeeded")
 	tflog.Info(ctx, "xui_panel_settings create restart_panel evaluated", map[string]any{
-		"restart_panel_null":  plan.RestartPanel.IsNull(),
-		"restart_panel_value": !plan.RestartPanel.IsNull() && plan.RestartPanel.ValueBool(),
+		"restart_panel_value": plan.RestartPanel.ValueBool(),
 	})
-	if !plan.RestartPanel.IsNull() && plan.RestartPanel.ValueBool() {
-		tflog.Info(ctx, "xui_panel_settings create attempting panel restart")
+	if plan.RestartPanel.ValueBool() {
+		tflog.Info(ctx, "xui_panel_settings create attempting panel restart after settings apply")
 		if err := r.client.RestartPanel(); err != nil {
 			tflog.Error(ctx, "xui_panel_settings create panel restart failed", map[string]any{"error": err.Error()})
 			resp.Diagnostics.AddError("Panel restart failed", fmt.Sprintf("`restart_panel = true` was requested but panel restart failed: %s", err.Error()))
@@ -773,7 +773,7 @@ func (r *panelSettingsResource) Create(ctx context.Context, req resource.CreateR
 		tflog.Info(ctx, "xui_panel_settings create panel restart succeeded")
 	}
 	plan.ID = types.StringValue("panel-settings")
-	plan.RestartPanel = types.BoolNull()
+	plan.RestartPanel = types.BoolValue(false)
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -789,7 +789,7 @@ func (r *panelSettingsResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 	r.apiToModel(m, &state)
-	state.RestartPanel = types.BoolNull()
+	state.RestartPanel = types.BoolValue(false)
 	if state.ID.IsNull() || state.ID.ValueString() == "" {
 		state.ID = types.StringValue("panel-settings")
 	}
@@ -810,11 +810,10 @@ func (r *panelSettingsResource) Update(ctx context.Context, req resource.UpdateR
 	}
 	tflog.Info(ctx, "xui_panel_settings update updatePanelSettings succeeded")
 	tflog.Info(ctx, "xui_panel_settings update restart_panel evaluated", map[string]any{
-		"restart_panel_null":  plan.RestartPanel.IsNull(),
-		"restart_panel_value": !plan.RestartPanel.IsNull() && plan.RestartPanel.ValueBool(),
+		"restart_panel_value": plan.RestartPanel.ValueBool(),
 	})
-	if !plan.RestartPanel.IsNull() && plan.RestartPanel.ValueBool() {
-		tflog.Info(ctx, "xui_panel_settings update attempting panel restart")
+	if plan.RestartPanel.ValueBool() {
+		tflog.Info(ctx, "xui_panel_settings update attempting panel restart after settings apply")
 		if err := r.client.RestartPanel(); err != nil {
 			tflog.Error(ctx, "xui_panel_settings update panel restart failed", map[string]any{"error": err.Error()})
 			resp.Diagnostics.AddError("Panel restart failed", fmt.Sprintf("`restart_panel = true` was requested but panel restart failed: %s", err.Error()))
@@ -823,7 +822,7 @@ func (r *panelSettingsResource) Update(ctx context.Context, req resource.UpdateR
 		tflog.Info(ctx, "xui_panel_settings update panel restart succeeded")
 	}
 	plan.ID = types.StringValue("panel-settings")
-	plan.RestartPanel = types.BoolNull()
+	plan.RestartPanel = types.BoolValue(false)
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -839,7 +838,7 @@ func (r *panelSettingsResource) ImportState(ctx context.Context, _ resource.Impo
 	}
 	var state panelSettingsModel
 	state.ID = types.StringValue("panel-settings")
-	state.RestartPanel = types.BoolNull()
+	state.RestartPanel = types.BoolValue(false)
 	r.apiToModel(m, &state)
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 }

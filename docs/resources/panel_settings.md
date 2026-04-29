@@ -40,8 +40,6 @@ resource "xui_panel_settings" "this" {
 
 ### Optional
 
-> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
-
 - `datepicker` (String) Date picker format.
 - `expire_diff` (Number) Expiration warning threshold in days.
 - `external_traffic_inform_enable` (Boolean) Enable external traffic reporting.
@@ -68,7 +66,7 @@ resource "xui_panel_settings" "this" {
 - `ldap_vless_field` (String) LDAP attribute mapped to VLESS identity.
 - `page_size` (Number) Number of items per page in lists.
 - `remark_model` (String) Remark model pattern for inbounds.
-- `restart_panel` (Boolean, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) If true, restart the panel after applying changes. Required for web listen/port/cert changes to take effect.
+- `restart_panel` (Boolean) If true, restart the panel after applying settings changes. Required for web listen/port/cert changes to take effect.
 - `session_max_age` (Number) Session maximum age in minutes.
 - `sub_announce` (String) Subscription announcement.
 - `sub_cert_file` (String) SSL certificate file for subscription server.
