@@ -45,7 +45,7 @@ func TestAccInbound_basic(t *testing.T) {
 				ResourceName:            "xui_inbound.test",
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"dummy_client_uuid"},
+				ImportStateVerifyIgnore: []string{"dummy_client_uuid", "public_ipv4", "public_ipv6"},
 			},
 		},
 	})

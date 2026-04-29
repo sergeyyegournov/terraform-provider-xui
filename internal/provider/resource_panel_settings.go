@@ -758,7 +758,8 @@ func (r *panelSettingsResource) Create(ctx context.Context, req resource.CreateR
 	}
 	if !plan.RestartPanel.IsNull() && plan.RestartPanel.ValueBool() {
 		if err := r.client.RestartPanel(); err != nil {
-			resp.Diagnostics.AddWarning("Panel restart failed", fmt.Sprintf("Settings were saved but panel restart failed: %s", err.Error()))
+			resp.Diagnostics.AddError("Panel restart failed", fmt.Sprintf("`restart_panel = true` was requested but panel restart failed: %s", err.Error()))
+			return
 		}
 	}
 	plan.ID = types.StringValue("panel-settings")
@@ -798,7 +799,8 @@ func (r *panelSettingsResource) Update(ctx context.Context, req resource.UpdateR
 	}
 	if !plan.RestartPanel.IsNull() && plan.RestartPanel.ValueBool() {
 		if err := r.client.RestartPanel(); err != nil {
-			resp.Diagnostics.AddWarning("Panel restart failed", fmt.Sprintf("Settings were saved but panel restart failed: %s", err.Error()))
+			resp.Diagnostics.AddError("Panel restart failed", fmt.Sprintf("`restart_panel = true` was requested but panel restart failed: %s", err.Error()))
+			return
 		}
 	}
 	plan.ID = types.StringValue("panel-settings")

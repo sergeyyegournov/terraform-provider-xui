@@ -38,6 +38,13 @@ type StatusPublicIP struct {
 	IPv6 string
 }
 
+// Status is a subset of /panel/api/server/status payload.
+type Status struct {
+	Uptime    int64
+	AppUptime int64
+	PublicIP  StatusPublicIP
+}
+
 // NewClient builds an HTTP client; baseURL must include the panel path prefix (e.g. https://host:port/<uuid>/).
 func NewClient(rawBaseURL, username, password string, insecureSkipVerify bool) (*Client, error) {
 	u, err := url.Parse(rawBaseURL)
@@ -400,27 +407,64 @@ func (c *Client) UpdatePanelSettings(settings map[string]any) error {
 
 // RestartPanel triggers /panel/setting/restartPanel.
 func (c *Client) RestartPanel() error {
-	_, err := c.postJSON([]string{"panel", "setting", "restartPanel"}, map[string]any{})
+	// UI uses form body on this endpoint. Keep JSON and /panel/api/server
+	// variants as compatibility fallbacks for different panel builds.
+	_, err := c.postForm([]string{"panel", "setting", "restartPanel"}, map[string]string{})
+	if err == nil {
+		return nil
+	}
+	_, jsonErr := c.postJSON([]string{"panel", "setting", "restartPanel"}, map[string]any{})
+	if jsonErr == nil {
+		return nil
+	}
+	_, apiFormErr := c.postForm([]string{"panel", "api", "server", "restartPanel"}, map[string]string{})
+	if apiFormErr == nil {
+		return nil
+	}
+	_, apiJSONErr := c.postJSON([]string{"panel", "api", "server", "restartPanel"}, map[string]any{})
+	if apiJSONErr == nil {
+		return nil
+	}
+	if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "405") || strings.Contains(err.Error(), "415") {
+		return apiJSONErr
+	}
 	return err
 }
 
 // GetStatusPublicIP reads /panel/api/server/status and returns public IPs.
 func (c *Client) GetStatusPublicIP() (StatusPublicIP, error) {
-	msg, err := c.get([]string{"panel", "api", "server", "status"})
+	s, err := c.GetStatus()
 	if err != nil {
 		return StatusPublicIP{}, err
 	}
+	return s.PublicIP, nil
+}
+
+// GetStatus reads /panel/api/server/status and returns selected fields.
+func (c *Client) GetStatus() (Status, error) {
+	msg, err := c.get([]string{"panel", "api", "server", "status"})
+	if err != nil {
+		return Status{}, err
+	}
 	var payload struct {
+		Uptime   int64 `json:"uptime"`
+		AppStats struct {
+			Uptime int64 `json:"uptime"`
+		} `json:"appStats"`
 		PublicIP struct {
 			IPv4 string `json:"ipv4"`
 			IPv6 string `json:"ipv6"`
 		} `json:"publicIP"`
 	}
 	if err := json.Unmarshal(msg.Obj, &payload); err != nil {
-		return StatusPublicIP{}, fmt.Errorf("decode status payload: %w", err)
+		return Status{}, fmt.Errorf("decode status payload: %w", err)
 	}
-	return StatusPublicIP{
-		IPv4: payload.PublicIP.IPv4,
-		IPv6: payload.PublicIP.IPv6,
+	return Status{
+		Uptime:    payload.Uptime,
+		AppUptime: payload.AppStats.Uptime,
+		PublicIP: StatusPublicIP{
+			IPv4: payload.PublicIP.IPv4,
+			IPv6: payload.PublicIP.IPv6,
+		},
 	}, nil
 }

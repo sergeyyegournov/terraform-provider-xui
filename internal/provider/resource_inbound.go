@@ -128,10 +128,16 @@ func (r *inboundResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"public_ipv4": schema.StringAttribute{
 				MarkdownDescription: "Public IPv4 reported by x-ui status endpoint.",
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"public_ipv6": schema.StringAttribute{
 				MarkdownDescription: "Public IPv6 reported by x-ui status endpoint.",
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
