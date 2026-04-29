@@ -227,3 +227,81 @@ func TestUpdatePanelSettingsPostsJSON(t *testing.T) {
 		t.Fatalf("unexpected payload: %#v", got)
 	}
 }
+
+func TestRestartXrayServiceUsesFormAndChecksXrayResult(t *testing.T) {
+	t.Parallel()
+
+	var restartCalls int32
+	var resultCalls int32
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ui/login", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"msg":"ok","obj":null}`))
+	})
+	mux.HandleFunc("/ui/panel/api/server/restartXrayService", func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&restartCalls, 1)
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if ct := r.Header.Get("Content-Type"); !strings.Contains(ct, "application/x-www-form-urlencoded") {
+			t.Fatalf("unexpected content-type: %s", ct)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"msg":"Xray has been successfully relaunched.","obj":null}`))
+	})
+	mux.HandleFunc("/ui/panel/xray/getXrayResult", func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&resultCalls, 1)
+		if r.Method != http.MethodGet {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"msg":"","obj":""}`))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	c, err := NewClient(srv.URL+"/ui/", "u", "p", true)
+	if err != nil {
+		t.Fatalf("NewClient() error = %v", err)
+	}
+	if err := c.RestartXrayService(); err != nil {
+		t.Fatalf("RestartXrayService() error = %v", err)
+	}
+	if atomic.LoadInt32(&restartCalls) != 1 {
+		t.Fatalf("expected one restart call, got %d", restartCalls)
+	}
+	if atomic.LoadInt32(&resultCalls) < 1 {
+		t.Fatalf("expected getXrayResult to be called")
+	}
+}
+
+func TestRestartXrayServiceReturnsErrorWhenXrayResultNotEmpty(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ui/login", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"msg":"ok","obj":null}`))
+	})
+	mux.HandleFunc("/ui/panel/api/server/restartXrayService", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"msg":"Xray has been successfully relaunched.","obj":null}`))
+	})
+	mux.HandleFunc("/ui/panel/xray/getXrayResult", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"msg":"","obj":"some startup error"}`))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	c, err := NewClient(srv.URL+"/ui/", "u", "p", true)
+	if err != nil {
+		t.Fatalf("NewClient() error = %v", err)
+	}
+	if err := c.RestartXrayService(); err == nil {
+		t.Fatalf("expected error when xray result stays non-empty")
+	}
+}

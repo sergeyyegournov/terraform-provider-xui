@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Client talks to a 3x-ui panel using the same cookie session as the web UI.
@@ -303,16 +304,55 @@ func (c *Client) UpdateXrayTemplate(templateJSON string) error {
 func (c *Client) RestartXrayService() error {
 	_, err := c.postForm([]string{"panel", "api", "server", "restartXrayService"}, map[string]string{})
 	if err == nil {
-		return nil
+		return c.waitForXrayResultClear(5 * time.Second)
 	}
 	_, ctErr := c.postJSON([]string{"panel", "api", "server", "restartXrayService"}, map[string]any{})
 	if ctErr == nil {
-		return nil
+		return c.waitForXrayResultClear(5 * time.Second)
 	}
 	if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "405") || strings.Contains(err.Error(), "415") {
 		return ctErr
 	}
 	return err
+}
+
+// GetXrayResult returns current panel xray result string.
+func (c *Client) GetXrayResult() (string, error) {
+	msg, err := c.get([]string{"panel", "xray", "getXrayResult"})
+	if err != nil {
+		return "", err
+	}
+	var objString string
+	if err := json.Unmarshal(msg.Obj, &objString); err == nil {
+		return objString, nil
+	}
+	var objAny any
+	if err := json.Unmarshal(msg.Obj, &objAny); err != nil {
+		return "", fmt.Errorf("decode /panel/xray/getXrayResult payload: %w", err)
+	}
+	if objAny == nil {
+		return "", nil
+	}
+	return fmt.Sprintf("%v", objAny), nil
+}
+
+func (c *Client) waitForXrayResultClear(timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	var last string
+	for time.Now().Before(deadline) {
+		result, err := c.GetXrayResult()
+		if err == nil {
+			if strings.TrimSpace(result) == "" {
+				return nil
+			}
+			last = result
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if last == "" {
+		return fmt.Errorf("xray restart verification timed out")
+	}
+	return fmt.Errorf("xray restart reported non-empty result: %s", last)
 }
 
 // ListInbounds returns raw obj JSON (array of inbounds).

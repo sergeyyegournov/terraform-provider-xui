@@ -31,7 +31,14 @@ func TestAccXrayTemplate_basic(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccXrayTemplateConfig(templateJSON),
+				Config: testAccXrayTemplateConfig(templateJSON, false),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("xui_xray_template.test", "id", "xray-template"),
+					resource.TestCheckResourceAttrSet("xui_xray_template.test", "json"),
+				),
+			},
+			{
+				Config: testAccXrayTemplateConfig(templateJSON, true),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("xui_xray_template.test", "id", "xray-template"),
 					resource.TestCheckResourceAttrSet("xui_xray_template.test", "json"),
@@ -57,7 +64,7 @@ func TestAccXrayTemplate_basic(t *testing.T) {
 	})
 }
 
-func testAccXrayTemplateConfig(templateJSON string) string {
+func testAccXrayTemplateConfig(templateJSON string, restartXray bool) string {
 	// Wrap the template JSON in an HCL heredoc to avoid quoting issues.
 	// The provider accepts this string verbatim as `xraySetting`.
 	return fmt.Sprintf(`%s
@@ -66,7 +73,7 @@ resource "xui_xray_template" "test" {
   json         = <<-EOT
 %s
 EOT
-  restart_xray = false
+  restart_xray = %t
 }
-`, providerConfig(), templateJSON)
+`, providerConfig(), templateJSON, restartXray)
 }
