@@ -11,8 +11,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	"github.com/syegournov/xkeen-gen/terraform-provider-xui/internal/xui"
 )
@@ -80,6 +80,18 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 				Optional:            true,
 				Computed:            true,
 				Default:             stringdefault.StaticString("/"),
+			},
+			"trusted_proxy_cidrs": schema.StringAttribute{
+				MarkdownDescription: "Trusted reverse-proxy CIDRs used for forwarded headers.",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString("127.0.0.1/32,::1/128"),
+			},
+			"panel_proxy": schema.StringAttribute{
+				MarkdownDescription: "Proxy URL used by the panel for outbound requests.",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
 			},
 			"session_max_age": schema.Int64Attribute{
 				MarkdownDescription: "Session maximum age in minutes.",
@@ -418,6 +430,12 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 				Computed:            true,
 				Default:             booldefault.StaticBool(false),
 			},
+			"sub_email_in_remark": schema.BoolAttribute{
+				MarkdownDescription: "Include client email in generated subscription remark/name.",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(true),
+			},
 			"sub_uri": schema.StringAttribute{
 				MarkdownDescription: "Subscription server URI.",
 				Optional:            true,
@@ -472,6 +490,30 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 				Computed:            true,
 				Default:             stringdefault.StaticString(""),
 			},
+			"sub_clash_enable": schema.BoolAttribute{
+				MarkdownDescription: "Enable Clash/Mihomo subscription endpoint.",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(true),
+			},
+			"sub_clash_path": schema.StringAttribute{
+				MarkdownDescription: "Path for Clash/Mihomo subscription endpoint.",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString("/clash/"),
+			},
+			"sub_clash_uri": schema.StringAttribute{
+				MarkdownDescription: "Clash/Mihomo subscription URI.",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+			},
+			"restart_xray_on_client_disable": schema.BoolAttribute{
+				MarkdownDescription: "Restart Xray when clients are auto-disabled by expiry/traffic limits.",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(true),
+			},
 			"external_traffic_inform_enable": schema.BoolAttribute{
 				MarkdownDescription: "Enable external traffic reporting.",
 				Optional:            true,
@@ -512,13 +554,15 @@ type panelSettingsModel struct {
 	ID types.String `tfsdk:"id"`
 
 	// Web
-	WebListen     types.String `tfsdk:"web_listen"`
-	WebDomain     types.String `tfsdk:"web_domain"`
-	WebPort       types.Int64  `tfsdk:"web_port"`
-	WebCertFile   types.String `tfsdk:"web_cert_file"`
-	WebKeyFile    types.String `tfsdk:"web_key_file"`
-	WebBasePath   types.String `tfsdk:"web_base_path"`
-	SessionMaxAge types.Int64  `tfsdk:"session_max_age"`
+	WebListen         types.String `tfsdk:"web_listen"`
+	WebDomain         types.String `tfsdk:"web_domain"`
+	WebPort           types.Int64  `tfsdk:"web_port"`
+	WebCertFile       types.String `tfsdk:"web_cert_file"`
+	WebKeyFile        types.String `tfsdk:"web_key_file"`
+	WebBasePath       types.String `tfsdk:"web_base_path"`
+	TrustedProxyCIDRs types.String `tfsdk:"trusted_proxy_cidrs"`
+	PanelProxy        types.String `tfsdk:"panel_proxy"`
+	SessionMaxAge     types.Int64  `tfsdk:"session_max_age"`
 
 	// UI
 	PageSize    types.Int64  `tfsdk:"page_size"`
@@ -580,6 +624,7 @@ type panelSettingsModel struct {
 	SubUpdates                  types.Int64  `tfsdk:"sub_updates"`
 	SubEncrypt                  types.Bool   `tfsdk:"sub_encrypt"`
 	SubShowInfo                 types.Bool   `tfsdk:"sub_show_info"`
+	SubEmailInRemark            types.Bool   `tfsdk:"sub_email_in_remark"`
 	SubURI                      types.String `tfsdk:"sub_uri"`
 	SubJSONPath                 types.String `tfsdk:"sub_json_path"`
 	SubJSONURI                  types.String `tfsdk:"sub_json_uri"`
@@ -589,6 +634,10 @@ type panelSettingsModel struct {
 	SubJSONRules                types.String `tfsdk:"sub_json_rules"`
 	SubEnableRouting            types.Bool   `tfsdk:"sub_enable_routing"`
 	SubRoutingRules             types.String `tfsdk:"sub_routing_rules"`
+	SubClashEnable              types.Bool   `tfsdk:"sub_clash_enable"`
+	SubClashPath                types.String `tfsdk:"sub_clash_path"`
+	SubClashURI                 types.String `tfsdk:"sub_clash_uri"`
+	RestartXrayOnClientDisable  types.Bool   `tfsdk:"restart_xray_on_client_disable"`
 	ExternalTrafficInformEnable types.Bool   `tfsdk:"external_traffic_inform_enable"`
 	ExternalTrafficInformURI    types.String `tfsdk:"external_traffic_inform_uri"`
 
@@ -604,6 +653,8 @@ func (r *panelSettingsResource) modelToPayload(m *panelSettingsModel) map[string
 		"webCertFile":                 m.WebCertFile.ValueString(),
 		"webKeyFile":                  m.WebKeyFile.ValueString(),
 		"webBasePath":                 m.WebBasePath.ValueString(),
+		"trustedProxyCIDRs":           m.TrustedProxyCIDRs.ValueString(),
+		"panelProxy":                  m.PanelProxy.ValueString(),
 		"sessionMaxAge":               m.SessionMaxAge.ValueInt64(),
 		"pageSize":                    m.PageSize.ValueInt64(),
 		"expireDiff":                  m.ExpireDiff.ValueInt64(),
@@ -658,6 +709,7 @@ func (r *panelSettingsResource) modelToPayload(m *panelSettingsModel) map[string
 		"subUpdates":                  m.SubUpdates.ValueInt64(),
 		"subEncrypt":                  m.SubEncrypt.ValueBool(),
 		"subShowInfo":                 m.SubShowInfo.ValueBool(),
+		"subEmailInRemark":            m.SubEmailInRemark.ValueBool(),
 		"subURI":                      m.SubURI.ValueString(),
 		"subJsonPath":                 m.SubJSONPath.ValueString(),
 		"subJsonURI":                  m.SubJSONURI.ValueString(),
@@ -667,6 +719,10 @@ func (r *panelSettingsResource) modelToPayload(m *panelSettingsModel) map[string
 		"subJsonRules":                m.SubJSONRules.ValueString(),
 		"subEnableRouting":            m.SubEnableRouting.ValueBool(),
 		"subRoutingRules":             m.SubRoutingRules.ValueString(),
+		"subClashEnable":              m.SubClashEnable.ValueBool(),
+		"subClashPath":                m.SubClashPath.ValueString(),
+		"subClashURI":                 m.SubClashURI.ValueString(),
+		"restartXrayOnClientDisable":  m.RestartXrayOnClientDisable.ValueBool(),
 		"externalTrafficInformEnable": m.ExternalTrafficInformEnable.ValueBool(),
 		"externalTrafficInformURI":    m.ExternalTrafficInformURI.ValueString(),
 	}
@@ -680,6 +736,8 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.WebCertFile = types.StringValue(stringFromMap(m, "webCertFile"))
 	state.WebKeyFile = types.StringValue(stringFromMap(m, "webKeyFile"))
 	state.WebBasePath = types.StringValue(stringFromMap(m, "webBasePath"))
+	state.TrustedProxyCIDRs = types.StringValue(stringFromMap(m, "trustedProxyCIDRs"))
+	state.PanelProxy = types.StringValue(stringFromMap(m, "panelProxy"))
 	state.SessionMaxAge = types.Int64Value(int64FromMap(m, "sessionMaxAge"))
 	state.PageSize = types.Int64Value(int64FromMap(m, "pageSize"))
 	state.ExpireDiff = types.Int64Value(int64FromMap(m, "expireDiff"))
@@ -734,6 +792,7 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.SubUpdates = types.Int64Value(int64FromMap(m, "subUpdates"))
 	state.SubEncrypt = types.BoolValue(boolFromMap(m, "subEncrypt"))
 	state.SubShowInfo = types.BoolValue(boolFromMap(m, "subShowInfo"))
+	state.SubEmailInRemark = types.BoolValue(boolFromMap(m, "subEmailInRemark"))
 	state.SubURI = types.StringValue(stringFromMap(m, "subURI"))
 	state.SubJSONPath = types.StringValue(stringFromMap(m, "subJsonPath"))
 	state.SubJSONURI = types.StringValue(stringFromMap(m, "subJsonURI"))
@@ -743,6 +802,10 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.SubJSONRules = types.StringValue(stringFromMap(m, "subJsonRules"))
 	state.SubEnableRouting = types.BoolValue(boolFromMap(m, "subEnableRouting"))
 	state.SubRoutingRules = types.StringValue(stringFromMap(m, "subRoutingRules"))
+	state.SubClashEnable = types.BoolValue(boolFromMap(m, "subClashEnable"))
+	state.SubClashPath = types.StringValue(stringFromMap(m, "subClashPath"))
+	state.SubClashURI = types.StringValue(stringFromMap(m, "subClashURI"))
+	state.RestartXrayOnClientDisable = types.BoolValue(boolFromMap(m, "restartXrayOnClientDisable"))
 	state.ExternalTrafficInformEnable = types.BoolValue(boolFromMap(m, "externalTrafficInformEnable"))
 	state.ExternalTrafficInformURI = types.StringValue(stringFromMap(m, "externalTrafficInformURI"))
 }

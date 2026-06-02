@@ -229,7 +229,7 @@ func (r *vlessClientResource) Read(ctx context.Context, req resource.ReadRequest
 		resp.Diagnostics.AddError("Decode error", err.Error())
 		return
 	}
-	settingsJSON := stringFromMap(m, "settings")
+	settingsJSON := jsonStringFromMap(m, "settings")
 	cm, err := findVLESSClientByEmail(settingsJSON, state.Email.ValueString())
 	if err != nil {
 		resp.State.RemoveResource(ctx)
@@ -392,7 +392,7 @@ func (r *vlessClientResource) upsertVLESSClient(inboundID int64, matchEmail stri
 	if err != nil {
 		return nil, err
 	}
-	cm, err := findVLESSClientByEmail(stringFromMap(after, "settings"), newEmail)
+	cm, err := findVLESSClientByEmail(jsonStringFromMap(after, "settings"), newEmail)
 	if err != nil {
 		return nil, fmt.Errorf("client %q not found after inbound update: %w", newEmail, err)
 	}
@@ -446,7 +446,7 @@ func (r *vlessClientResource) fetchInboundSettings(inboundID int64) (map[string]
 		return nil, nil, err
 	}
 	var settings map[string]any
-	if err := json.Unmarshal([]byte(stringFromMap(inbound, "settings")), &settings); err != nil {
+	if err := json.Unmarshal([]byte(jsonStringFromMap(inbound, "settings")), &settings); err != nil {
 		return nil, nil, fmt.Errorf("parse inbound settings: %w", err)
 	}
 	if settings == nil {
@@ -478,8 +478,8 @@ func (r *vlessClientResource) pushInbound(inboundID int64, inbound, settings map
 		"port":           port,
 		"protocol":       stringFromMap(inbound, "protocol"),
 		"settings":       canonicalizeInboundSettings(string(settingsRaw)),
-		"streamSettings": compactJSON(stringFromMap(inbound, "streamSettings")),
-		"sniffing":       compactJSON(stringFromMap(inbound, "sniffing")),
+		"streamSettings": compactJSON(jsonStringFromMap(inbound, "streamSettings")),
+		"sniffing":       compactJSON(jsonStringFromMap(inbound, "sniffing")),
 		"enable":         boolFromMap(inbound, "enable"),
 		"expiryTime":     int64FromMap(inbound, "expiryTime"),
 		"trafficReset":   stringFromMap(inbound, "trafficReset"),

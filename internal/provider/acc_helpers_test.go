@@ -164,7 +164,7 @@ func inboundHasSentinelClient(inboundID int) (bool, error) {
 	if err := json.Unmarshal(raw, &inbound); err != nil {
 		return false, err
 	}
-	settingsStr, _ := inbound["settings"].(string)
+	settingsStr := jsonStringFromMap(inbound, "settings")
 	uid, err := findDummyClientUUID(settingsStr)
 	if err != nil {
 		return false, err
@@ -187,7 +187,7 @@ func findClientUUIDByEmail(inboundID int, email string) (string, error) {
 	if err := json.Unmarshal(raw, &inbound); err != nil {
 		return "", fmt.Errorf("decode inbound: %w", err)
 	}
-	settingsStr, _ := inbound["settings"].(string)
+	settingsStr := jsonStringFromMap(inbound, "settings")
 	if strings.TrimSpace(settingsStr) == "" {
 		return "", nil
 	}

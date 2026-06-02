@@ -16,10 +16,14 @@ import (
 
 // Client talks to a 3x-ui panel using the same cookie session as the web UI.
 type Client struct {
-	baseURL *url.URL
-	http    *http.Client
-	user    string
-	pass    string
+	baseURL  *url.URL
+	http     *http.Client
+	user     string
+	pass     string
+	loginMu  sync.Mutex
+	loggedIn bool
+	csrfMu   sync.Mutex
+	csrf     string
 
 	// inboundMus serializes read-modify-write sequences against a single
 	// inbound's settings. 3x-ui's per-client endpoints (addClient,
@@ -87,6 +91,25 @@ type loginBody struct {
 
 // Login establishes a session cookie. Call before other API methods.
 func (c *Client) Login() error {
+	c.loginMu.Lock()
+	defer c.loginMu.Unlock()
+	if c.loggedIn {
+		return nil
+	}
+	return c.loginLocked()
+}
+
+func (c *Client) invalidateSession() {
+	c.loginMu.Lock()
+	c.loggedIn = false
+	c.loginMu.Unlock()
+}
+
+func (c *Client) loginLocked() error {
+	token, err := c.fetchCSRFToken()
+	if err != nil {
+		return err
+	}
 	endpoint, err := c.join("login")
 	if err != nil {
 		return err
@@ -101,6 +124,9 @@ func (c *Client) Login() error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	if token != "" {
+		req.Header.Set("X-CSRF-Token", token)
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -109,6 +135,9 @@ func (c *Client) Login() error {
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(resp.Body)
 
+	if len(b) == 0 {
+		return fmt.Errorf("login: empty response (status %d)", resp.StatusCode)
+	}
 	var msg APIResponse
 	if err := json.Unmarshal(b, &msg); err != nil {
 		return fmt.Errorf("login: decode response: %w; body=%s", err, truncate(b, 512))
@@ -116,7 +145,64 @@ func (c *Client) Login() error {
 	if !msg.Success {
 		return fmt.Errorf("login failed: %s", msg.Msg)
 	}
+
+	// Login rotates the session cookie; refresh the CSRF token bound to the
+	// post-login session before any unsafe API calls (3x-ui v3+).
+	token, err = c.fetchCSRFToken()
+	if err != nil {
+		return err
+	}
+	c.csrfMu.Lock()
+	c.csrf = token
+	c.csrfMu.Unlock()
+	c.loggedIn = true
 	return nil
+}
+
+func (c *Client) fetchCSRFToken() (string, error) {
+	endpoint, err := c.join("csrf-token")
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		// Older 3x-ui releases did not expose /csrf-token.
+		return "", nil
+	}
+	if resp.StatusCode >= http.StatusBadRequest {
+		return "", fmt.Errorf("fetch csrf token: status %d; body=%s", resp.StatusCode, truncate(b, 512))
+	}
+	var msg APIResponse
+	if err := json.Unmarshal(b, &msg); err != nil {
+		return "", fmt.Errorf("fetch csrf token: decode response: %w; body=%s", err, truncate(b, 512))
+	}
+	if !msg.Success {
+		return "", fmt.Errorf("fetch csrf token failed: %s", msg.Msg)
+	}
+	var token string
+	if err := json.Unmarshal(msg.Obj, &token); err != nil {
+		return "", fmt.Errorf("fetch csrf token: decode obj: %w; body=%s", err, truncate(b, 512))
+	}
+	return token, nil
+}
+
+func (c *Client) csrfToken() string {
+	c.csrfMu.Lock()
+	defer c.csrfMu.Unlock()
+	return c.csrf
 }
 
 func truncate(b []byte, n int) string {
@@ -154,6 +240,10 @@ func (c *Client) requestJSON(method, endpoint string, body []byte) (*APIResponse
 	if err := c.Login(); err != nil {
 		return nil, err
 	}
+	return c.requestJSONAuthed(method, endpoint, body, false)
+}
+
+func (c *Client) requestJSONAuthed(method, endpoint string, body []byte, retried bool) (*APIResponse, error) {
 	doOnce := func() ([]byte, int, error) {
 		var rdr io.Reader
 		if body != nil {
@@ -167,6 +257,9 @@ func (c *Client) requestJSON(method, endpoint string, body []byte) (*APIResponse
 			req.Header.Set("Content-Type", "application/json")
 		}
 		req.Header.Set("Accept", "application/json")
+		if token := c.csrfToken(); token != "" {
+			req.Header.Set("X-CSRF-Token", token)
+		}
 		resp, err := c.http.Do(req)
 		if err != nil {
 			return nil, 0, err
@@ -179,14 +272,12 @@ func (c *Client) requestJSON(method, endpoint string, body []byte) (*APIResponse
 	if err != nil {
 		return nil, err
 	}
-	if status == http.StatusNotFound {
+	if shouldRetryAuth(status) && !retried {
+		c.invalidateSession()
 		if err := c.Login(); err != nil {
 			return nil, err
 		}
-		b, _, err = doOnce()
-		if err != nil {
-			return nil, err
-		}
+		return c.requestJSONAuthed(method, endpoint, body, true)
 	}
 	var msg APIResponse
 	if err := json.Unmarshal(b, &msg); err != nil {
@@ -196,6 +287,10 @@ func (c *Client) requestJSON(method, endpoint string, body []byte) (*APIResponse
 		return nil, fmt.Errorf("%s %s: %s", method, endpoint, msg.Msg)
 	}
 	return &msg, nil
+}
+
+func shouldRetryAuth(status int) bool {
+	return status == http.StatusNotFound || status == http.StatusForbidden
 }
 
 func (c *Client) postForm(path []string, payload map[string]string) (*APIResponse, error) {
@@ -214,6 +309,10 @@ func (c *Client) requestForm(endpoint string, form url.Values) (*APIResponse, er
 	if err := c.Login(); err != nil {
 		return nil, err
 	}
+	return c.requestFormAuthed(endpoint, form, false)
+}
+
+func (c *Client) requestFormAuthed(endpoint string, form url.Values, retried bool) (*APIResponse, error) {
 	doOnce := func() ([]byte, int, error) {
 		req, err := http.NewRequest(http.MethodPost, endpoint, strings.NewReader(form.Encode()))
 		if err != nil {
@@ -221,6 +320,9 @@ func (c *Client) requestForm(endpoint string, form url.Values) (*APIResponse, er
 		}
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		req.Header.Set("Accept", "application/json")
+		if token := c.csrfToken(); token != "" {
+			req.Header.Set("X-CSRF-Token", token)
+		}
 		resp, err := c.http.Do(req)
 		if err != nil {
 			return nil, 0, err
@@ -233,14 +335,12 @@ func (c *Client) requestForm(endpoint string, form url.Values) (*APIResponse, er
 	if err != nil {
 		return nil, err
 	}
-	if status == http.StatusNotFound {
+	if shouldRetryAuth(status) && !retried {
+		c.invalidateSession()
 		if err := c.Login(); err != nil {
 			return nil, err
 		}
-		b, _, err = doOnce()
-		if err != nil {
-			return nil, err
-		}
+		return c.requestFormAuthed(endpoint, form, true)
 	}
 	var msg APIResponse
 	if err := json.Unmarshal(b, &msg); err != nil {
@@ -445,25 +545,47 @@ func (c *Client) UpdatePanelSettings(settings map[string]any) error {
 	return err
 }
 
+func (c *Client) waitForPanelReady(timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		_, err := c.fetchCSRFToken()
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		time.Sleep(500 * time.Millisecond)
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("panel not ready")
+	}
+	return fmt.Errorf("panel not ready after %s: %w", timeout, lastErr)
+}
+
+func (c *Client) finishPanelRestart() error {
+	c.invalidateSession()
+	return c.waitForPanelReady(30 * time.Second)
+}
+
 // RestartPanel triggers /panel/setting/restartPanel.
 func (c *Client) RestartPanel() error {
 	// UI uses form body on this endpoint. Keep JSON and /panel/api/server
 	// variants as compatibility fallbacks for different panel builds.
 	_, err := c.postForm([]string{"panel", "setting", "restartPanel"}, map[string]string{})
 	if err == nil {
-		return nil
+		return c.finishPanelRestart()
 	}
 	_, jsonErr := c.postJSON([]string{"panel", "setting", "restartPanel"}, map[string]any{})
 	if jsonErr == nil {
-		return nil
+		return c.finishPanelRestart()
 	}
 	_, apiFormErr := c.postForm([]string{"panel", "api", "server", "restartPanel"}, map[string]string{})
 	if apiFormErr == nil {
-		return nil
+		return c.finishPanelRestart()
 	}
 	_, apiJSONErr := c.postJSON([]string{"panel", "api", "server", "restartPanel"}, map[string]any{})
 	if apiJSONErr == nil {
-		return nil
+		return c.finishPanelRestart()
 	}
 	if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "405") || strings.Contains(err.Error(), "415") {
 		return apiJSONErr

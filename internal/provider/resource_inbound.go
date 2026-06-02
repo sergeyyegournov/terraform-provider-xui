@@ -156,15 +156,15 @@ func (r *inboundResource) Configure(_ context.Context, req resource.ConfigureReq
 }
 
 type inboundModel struct {
-	ID             types.Int64  `tfsdk:"id"`
-	Protocol       types.String `tfsdk:"protocol"`
-	Remark         types.String `tfsdk:"remark"`
-	Listen         types.String `tfsdk:"listen"`
-	Port           types.Int64  `tfsdk:"port"`
-	Enable         types.Bool   `tfsdk:"enable"`
-	ExpiryTime     types.Int64  `tfsdk:"expiry_time"`
-	TrafficReset   types.String `tfsdk:"traffic_reset"`
-	Total          types.Int64  `tfsdk:"total"`
+	ID             types.Int64          `tfsdk:"id"`
+	Protocol       types.String         `tfsdk:"protocol"`
+	Remark         types.String         `tfsdk:"remark"`
+	Listen         types.String         `tfsdk:"listen"`
+	Port           types.Int64          `tfsdk:"port"`
+	Enable         types.Bool           `tfsdk:"enable"`
+	ExpiryTime     types.Int64          `tfsdk:"expiry_time"`
+	TrafficReset   types.String         `tfsdk:"traffic_reset"`
+	Total          types.Int64          `tfsdk:"total"`
 	Settings       types.String         `tfsdk:"settings"`
 	StreamSettings jsontypes.Normalized `tfsdk:"stream_settings"`
 	Sniffing       jsontypes.Normalized `tfsdk:"sniffing"`
@@ -230,7 +230,7 @@ func (r *inboundResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 	plan.ID = types.Int64Value(int64(id))
 	plan.Tag = types.StringValue(stringFromMap(m, "tag"))
-	if dummyUUID, err := findDummyClientUUID(stringFromMap(m, "settings")); err == nil && dummyUUID != "" {
+	if dummyUUID, err := findDummyClientUUID(jsonStringFromMap(m, "settings")); err == nil && dummyUUID != "" {
 		plan.DummyClientID = types.StringValue(dummyUUID)
 	}
 	status, err := r.client.GetStatusPublicIP()
@@ -294,11 +294,11 @@ func (r *inboundResource) Read(ctx context.Context, req resource.ReadRequest, re
 	state.ExpiryTime = types.Int64Value(int64(exp))
 	state.TrafficReset = types.StringValue(stringFromMap(m, "trafficReset"))
 	state.Total = types.Int64Value(int64FromMap(m, "total"))
-	state.Settings = types.StringValue(canonicalizeInboundSettings(stringFromMap(m, "settings")))
-	state.StreamSettings = jsontypes.NewNormalizedValue(stringFromMap(m, "streamSettings"))
-	state.Sniffing = jsontypes.NewNormalizedValue(stringFromMap(m, "sniffing"))
+	state.Settings = types.StringValue(canonicalizeInboundSettings(jsonStringFromMap(m, "settings")))
+	state.StreamSettings = jsontypes.NewNormalizedValue(jsonStringFromMap(m, "streamSettings"))
+	state.Sniffing = jsontypes.NewNormalizedValue(jsonStringFromMap(m, "sniffing"))
 	state.Tag = types.StringValue(stringFromMap(m, "tag"))
-	if dummyUUID, err := findDummyClientUUID(stringFromMap(m, "settings")); err == nil && dummyUUID != "" {
+	if dummyUUID, err := findDummyClientUUID(jsonStringFromMap(m, "settings")); err == nil && dummyUUID != "" {
 		state.DummyClientID = types.StringValue(dummyUUID)
 	}
 	status, err := r.client.GetStatusPublicIP()
@@ -348,10 +348,10 @@ func (r *inboundResource) Update(ctx context.Context, req resource.UpdateRequest
 	}
 	if !inboundUserManagedFieldsChanged(plan, state) {
 		state.Tag = types.StringValue(stringFromMap(cur, "tag"))
-		state.Settings = types.StringValue(canonicalizeInboundSettings(stringFromMap(cur, "settings")))
-		state.StreamSettings = jsontypes.NewNormalizedValue(stringFromMap(cur, "streamSettings"))
-		state.Sniffing = jsontypes.NewNormalizedValue(stringFromMap(cur, "sniffing"))
-		if dummyUUID, err := findDummyClientUUID(stringFromMap(cur, "settings")); err == nil {
+		state.Settings = types.StringValue(canonicalizeInboundSettings(jsonStringFromMap(cur, "settings")))
+		state.StreamSettings = jsontypes.NewNormalizedValue(jsonStringFromMap(cur, "streamSettings"))
+		state.Sniffing = jsontypes.NewNormalizedValue(jsonStringFromMap(cur, "sniffing"))
+		if dummyUUID, err := findDummyClientUUID(jsonStringFromMap(cur, "settings")); err == nil {
 			state.DummyClientID = types.StringValue(dummyUUID)
 		}
 		status, err := r.client.GetStatusPublicIP()
@@ -364,7 +364,7 @@ func (r *inboundResource) Update(ctx context.Context, req resource.UpdateRequest
 		resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 		return
 	}
-	settingsJSON := stringFromMap(cur, "settings")
+	settingsJSON := jsonStringFromMap(cur, "settings")
 	settingsMerged, err := mergeInboundSettingsPreservingClients(settingsJSON, plan.Settings.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("settings", err.Error())
@@ -412,10 +412,10 @@ func (r *inboundResource) Update(ctx context.Context, req resource.UpdateRequest
 	if rawAfter, err := r.client.GetInbound(int(state.ID.ValueInt64())); err == nil {
 		if m, err := inboundMapFromJSON(rawAfter); err == nil {
 			state.Tag = types.StringValue(stringFromMap(m, "tag"))
-			state.Settings = types.StringValue(canonicalizeInboundSettings(stringFromMap(m, "settings")))
-			state.StreamSettings = jsontypes.NewNormalizedValue(stringFromMap(m, "streamSettings"))
-			state.Sniffing = jsontypes.NewNormalizedValue(stringFromMap(m, "sniffing"))
-			if dummyUUID, err := findDummyClientUUID(stringFromMap(m, "settings")); err == nil && dummyUUID != "" {
+			state.Settings = types.StringValue(canonicalizeInboundSettings(jsonStringFromMap(m, "settings")))
+			state.StreamSettings = jsontypes.NewNormalizedValue(jsonStringFromMap(m, "streamSettings"))
+			state.Sniffing = jsontypes.NewNormalizedValue(jsonStringFromMap(m, "sniffing"))
+			if dummyUUID, err := findDummyClientUUID(jsonStringFromMap(m, "settings")); err == nil && dummyUUID != "" {
 				state.DummyClientID = types.StringValue(dummyUUID)
 			}
 		}
@@ -468,7 +468,7 @@ func inboundUserManagedFieldsChanged(plan, state inboundModel) bool {
 }
 
 func (r *inboundResource) ensureDummyClientPresent(cur map[string]any, preferredDummyUUID string) (map[string]any, error) {
-	settingsJSON := stringFromMap(cur, "settings")
+	settingsJSON := jsonStringFromMap(cur, "settings")
 	dummyUUID, err := findDummyClientUUID(settingsJSON)
 	if err != nil {
 		return nil, fmt.Errorf("parse settings: %w", err)
@@ -497,7 +497,7 @@ func (r *inboundResource) ensureDummyClientPresent(cur map[string]any, preferred
 	if err != nil {
 		return nil, err
 	}
-	settingsJSON = stringFromMap(cur, "settings")
+	settingsJSON = jsonStringFromMap(cur, "settings")
 	if dummyUUID, err := findDummyClientUUID(settingsJSON); err != nil {
 		return nil, fmt.Errorf("parse settings: %w", err)
 	} else if dummyUUID != "" {
@@ -515,8 +515,8 @@ func (r *inboundResource) ensureDummyClientPresent(cur map[string]any, preferred
 		"port":           int64FromMap(cur, "port"),
 		"protocol":       stringFromMap(cur, "protocol"),
 		"settings":       canonicalizeInboundSettings(settingsWithDummy),
-		"streamSettings": compactJSON(stringFromMap(cur, "streamSettings")),
-		"sniffing":       compactJSON(stringFromMap(cur, "sniffing")),
+		"streamSettings": compactJSON(jsonStringFromMap(cur, "streamSettings")),
+		"sniffing":       compactJSON(jsonStringFromMap(cur, "sniffing")),
 		"enable":         boolFromMap(cur, "enable"),
 		"expiryTime":     int64FromMap(cur, "expiryTime"),
 		"trafficReset":   stringFromMap(cur, "trafficReset"),

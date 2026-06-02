@@ -47,6 +47,23 @@ func stringFromMap(m map[string]any, key string) string {
 	return s
 }
 
+// jsonStringFromMap returns a JSON text value for an inbound field that 3x-ui
+// may return either as a string (legacy wire shape) or as a nested object (v3+).
+func jsonStringFromMap(m map[string]any, key string) string {
+	v, ok := m[key]
+	if !ok || v == nil {
+		return ""
+	}
+	if s, ok := v.(string); ok {
+		return s
+	}
+	out, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+	return string(out)
+}
+
 func int64FromMap(m map[string]any, key string) int64 {
 	v, ok := m[key]
 	if !ok || v == nil {

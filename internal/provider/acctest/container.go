@@ -29,7 +29,7 @@ import (
 // image3xUI is the pinned panel image. Bumping it is a one-line change plus a
 // `make testacc` run. Avoid `:latest` — that breaks test reproducibility.
 // Tags are published at https://github.com/mhsanaei/3x-ui/pkgs/container/3x-ui .
-const image3xUI = "ghcr.io/mhsanaei/3x-ui:v2.8.11"
+const image3xUI = "ghcr.io/mhsanaei/3x-ui:v3.2.0"
 
 // Panel describes a running 3x-ui panel reachable over HTTP(S).
 type Panel struct {

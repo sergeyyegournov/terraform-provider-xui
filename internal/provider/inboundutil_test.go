@@ -115,6 +115,28 @@ func TestCanonicalizeInboundSettingsIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestJSONStringFromMap_objectAndString(t *testing.T) {
+	t.Parallel()
+
+	obj := map[string]any{
+		"settings": map[string]any{
+			"clients":    []any{},
+			"decryption": "none",
+		},
+		"streamSettings": `{"network":"tcp"}`,
+	}
+	got := jsonStringFromMap(obj, "settings")
+	if got == "" {
+		t.Fatal("expected marshaled settings object")
+	}
+	if got[0] != '{' {
+		t.Fatalf("expected JSON object, got %q", got)
+	}
+	if jsonStringFromMap(obj, "streamSettings") != `{"network":"tcp"}` {
+		t.Fatalf("expected legacy string passthrough")
+	}
+}
+
 func TestFindDummyClientUUID(t *testing.T) {
 	t.Parallel()
 

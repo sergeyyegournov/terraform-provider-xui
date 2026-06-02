@@ -76,12 +76,12 @@ func (d *inboundDataSource) Configure(_ context.Context, req datasource.Configur
 }
 
 type inboundDSModel struct {
-	ID             types.Int64  `tfsdk:"id"`
-	Remark         types.String `tfsdk:"remark"`
-	Listen         types.String `tfsdk:"listen"`
-	Port           types.Int64  `tfsdk:"port"`
-	Protocol       types.String `tfsdk:"protocol"`
-	Enable         types.Bool   `tfsdk:"enable"`
+	ID             types.Int64          `tfsdk:"id"`
+	Remark         types.String         `tfsdk:"remark"`
+	Listen         types.String         `tfsdk:"listen"`
+	Port           types.Int64          `tfsdk:"port"`
+	Protocol       types.String         `tfsdk:"protocol"`
+	Enable         types.Bool           `tfsdk:"enable"`
 	Settings       types.String         `tfsdk:"settings"`
 	StreamSettings jsontypes.Normalized `tfsdk:"stream_settings"`
 	Sniffing       jsontypes.Normalized `tfsdk:"sniffing"`
@@ -120,9 +120,9 @@ func fillInboundDSModelFromRaw(raw []byte, cfg *inboundDSModel) error {
 	cfg.Port = types.Int64Value(int64(port))
 	cfg.Protocol = types.StringValue(stringFromMap(m, "protocol"))
 	cfg.Enable = types.BoolValue(boolFromMap(m, "enable"))
-	cfg.Settings = types.StringValue(stringFromMap(m, "settings"))
-	cfg.StreamSettings = jsontypes.NewNormalizedValue(stringFromMap(m, "streamSettings"))
-	cfg.Sniffing = jsontypes.NewNormalizedValue(stringFromMap(m, "sniffing"))
+	cfg.Settings = types.StringValue(jsonStringFromMap(m, "settings"))
+	cfg.StreamSettings = jsontypes.NewNormalizedValue(jsonStringFromMap(m, "streamSettings"))
+	cfg.Sniffing = jsontypes.NewNormalizedValue(jsonStringFromMap(m, "sniffing"))
 	cfg.JSON = types.StringValue(string(raw))
 	return nil
 }
