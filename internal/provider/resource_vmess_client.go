@@ -121,7 +121,8 @@ func (r *vmessClientResource) Create(ctx context.Context, req resource.CreateReq
 		resp.Diagnostics.AddError("API error", err.Error())
 		return
 	}
-	applyVMessRecord(&plan, *rec)
+	applyVMessClientSecretsFromRecord(&plan, *rec)
+	finalizeClientSubID(&plan.SubID, *rec)
 	if wantEmptyFlow {
 		plan.Flow = types.StringValue("")
 	}
@@ -210,10 +211,17 @@ func (r *vmessClientResource) ImportState(ctx context.Context, req resource.Impo
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("email"), types.StringValue(email))...)
 }
 
-func applyVMessRecord(m *vmessClientModel, rec xui.PanelClientRecord) {
+func applyVMessClientSecretsFromRecord(m *vmessClientModel, rec xui.PanelClientRecord) {
 	uid := xui.PanelClientUUID(rec)
+	if uid == "" {
+		return
+	}
 	m.ID = types.StringValue(uid)
 	m.UUID = types.StringValue(uid)
+}
+
+func applyVMessRecord(m *vmessClientModel, rec xui.PanelClientRecord) {
+	applyVMessClientSecretsFromRecord(m, rec)
 	m.Security = types.StringValue(rec.Security)
 	m.Flow = types.StringValue(rec.Flow)
 	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.SubID, &m.Comment, rec)

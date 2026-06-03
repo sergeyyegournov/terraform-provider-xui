@@ -96,7 +96,8 @@ func (r *trojanClientResource) Create(ctx context.Context, req resource.CreateRe
 		resp.Diagnostics.AddError("API error", err.Error())
 		return
 	}
-	applyTrojanRecord(&plan, *rec)
+	applyTrojanClientSecretsFromRecord(&plan, *rec)
+	finalizeClientSubID(&plan.SubID, *rec)
 	if !plan.Comment.IsNull() && plan.Comment.ValueString() == "" {
 		plan.Comment = types.StringValue("")
 	}
@@ -186,12 +187,12 @@ func (r *trojanClientResource) ImportState(ctx context.Context, req resource.Imp
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("email"), types.StringValue(email))...)
 }
 
-func applyTrojanRecord(m *trojanClientModel, rec xui.PanelClientRecord) {
-	secret := rec.Password
-	if secret == "" {
-		secret = rec.Email
-	}
-	m.ID = types.StringValue(secret)
+func applyTrojanClientSecretsFromRecord(m *trojanClientModel, rec xui.PanelClientRecord) {
+	m.ID = types.StringValue(panelClientIDFromRecord(rec))
 	m.Password = types.StringValue(rec.Password)
+}
+
+func applyTrojanRecord(m *trojanClientModel, rec xui.PanelClientRecord) {
+	applyTrojanClientSecretsFromRecord(m, rec)
 	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.SubID, &m.Comment, rec)
 }

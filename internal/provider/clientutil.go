@@ -90,3 +90,26 @@ func applyCommonClientFields(enable *types.Bool, limitIP, totalGB, expiry, tgID,
 	*comment = types.StringValue(rec.Comment)
 	*reset = types.Int64Value(rec.Reset)
 }
+
+// panelClientIDFromRecord returns the Terraform `id` for a client record (UUID for
+// VLESS/VMess, password/auth secret for other protocols).
+// finalizeClientSubID sets sub_id from the panel when the plan left it unknown
+// (UseStateForUnknown on create). Explicit plan values are kept.
+func finalizeClientSubID(plan *types.String, rec xui.PanelClientRecord) {
+	if plan.IsUnknown() {
+		*plan = types.StringValue(rec.SubID)
+	}
+}
+
+func panelClientIDFromRecord(rec xui.PanelClientRecord) string {
+	if uid := xui.PanelClientUUID(rec); uid != "" {
+		return uid
+	}
+	if rec.Password != "" {
+		return rec.Password
+	}
+	if rec.Auth != "" {
+		return rec.Auth
+	}
+	return rec.Email
+}

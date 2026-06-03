@@ -96,7 +96,8 @@ func (r *hysteriaClientResource) Create(ctx context.Context, req resource.Create
 		resp.Diagnostics.AddError("API error", err.Error())
 		return
 	}
-	applyHysteriaRecord(&plan, *rec)
+	applyHysteriaClientSecretsFromRecord(&plan, *rec)
+	finalizeClientSubID(&plan.SubID, *rec)
 	if !plan.Comment.IsNull() && plan.Comment.ValueString() == "" {
 		plan.Comment = types.StringValue("")
 	}
@@ -186,12 +187,12 @@ func (r *hysteriaClientResource) ImportState(ctx context.Context, req resource.I
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("email"), types.StringValue(email))...)
 }
 
-func applyHysteriaRecord(m *hysteriaClientModel, rec xui.PanelClientRecord) {
-	secret := rec.Auth
-	if secret == "" {
-		secret = rec.Email
-	}
-	m.ID = types.StringValue(secret)
+func applyHysteriaClientSecretsFromRecord(m *hysteriaClientModel, rec xui.PanelClientRecord) {
+	m.ID = types.StringValue(panelClientIDFromRecord(rec))
 	m.Auth = types.StringValue(rec.Auth)
+}
+
+func applyHysteriaRecord(m *hysteriaClientModel, rec xui.PanelClientRecord) {
+	applyHysteriaClientSecretsFromRecord(m, rec)
 	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.SubID, &m.Comment, rec)
 }

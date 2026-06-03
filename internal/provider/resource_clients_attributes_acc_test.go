@@ -74,6 +74,48 @@ func TestAccVLESSClient_minimalAttributes(t *testing.T) {
 	})
 }
 
+func TestAccVLESSClient_enableFalse(t *testing.T) {
+	testAccPreCheck(t)
+	port := nextPort()
+	remark := fmt.Sprintf("tf-acc-vless-disabled-%d", port)
+	email := fmt.Sprintf("tf-acc-vless-disabled-%d", port)
+	cfg := testAccVLESSClientEnableFalseConfig(remark, port, email)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             checkInboundDestroyed,
+		Steps: []resource.TestStep{
+			{
+				Config: cfg,
+				// 3x-ui add may report enable=true on refresh even when false was sent.
+				ExpectNonEmptyPlan: true,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("xui_vless_client.test", "enable", "false"),
+					resource.TestCheckResourceAttr("xui_vless_client.test", "email", email),
+				),
+			},
+			{
+				Config: cfg,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("xui_vless_client.test", "enable", "false"),
+				),
+			},
+			accClientNoDriftStep(cfg),
+		},
+	})
+}
+
+func testAccVLESSClientEnableFalseConfig(remark string, port int, email string) string {
+	return fmt.Sprintf(`%s
+%s
+resource "xui_vless_client" "test" {
+  inbound_id = xui_inbound.test.id
+  email      = %q
+  enable     = false
+}
+`, providerConfig(), testAccVLESSInboundBlock(remark, port), email)
+}
+
 func TestAccVLESSClient_explicitAttributes(t *testing.T) {
 	testAccPreCheck(t)
 	port := nextPort()

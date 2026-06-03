@@ -165,7 +165,8 @@ func (r *shadowsocksClientResource) Create(ctx context.Context, req resource.Cre
 		resp.Diagnostics.AddError("API error", err.Error())
 		return
 	}
-	applyShadowsocksRecord(&plan, *rec)
+	applyShadowsocksClientSecretsFromRecord(&plan, *rec)
+	finalizeClientSubID(&plan.SubID, *rec)
 	if !plan.Comment.IsNull() && plan.Comment.ValueString() == "" {
 		plan.Comment = types.StringValue("")
 	}
@@ -255,19 +256,12 @@ func (r *shadowsocksClientResource) ImportState(ctx context.Context, req resourc
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("email"), types.StringValue(email))...)
 }
 
-func applyShadowsocksRecord(m *shadowsocksClientModel, rec xui.PanelClientRecord) {
-	secret := rec.Password
-	if secret == "" {
-		secret = rec.Email
-	}
-	m.ID = types.StringValue(secret)
+func applyShadowsocksClientSecretsFromRecord(m *shadowsocksClientModel, rec xui.PanelClientRecord) {
+	m.ID = types.StringValue(panelClientIDFromRecord(rec))
 	m.Password = types.StringValue(rec.Password)
-	m.Enable = types.BoolValue(rec.Enable)
-	m.LimitIP = types.Int64Value(rec.LimitIP)
-	m.TotalGB = types.Int64Value(rec.TotalGB)
-	m.ExpiryTime = types.Int64Value(rec.ExpiryTime)
-	m.TgID = types.Int64Value(rec.TgID)
-	m.SubID = types.StringValue(rec.SubID)
-	m.Comment = types.StringValue(rec.Comment)
-	m.Reset = types.Int64Value(rec.Reset)
+}
+
+func applyShadowsocksRecord(m *shadowsocksClientModel, rec xui.PanelClientRecord) {
+	applyShadowsocksClientSecretsFromRecord(m, rec)
+	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.SubID, &m.Comment, rec)
 }

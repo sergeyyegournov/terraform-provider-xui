@@ -183,15 +183,9 @@ func (r *vlessClientResource) Create(ctx context.Context, req resource.CreateReq
 	uid := xui.PanelClientUUID(*rec)
 	plan.ID = types.StringValue(uid)
 	plan.UUID = types.StringValue(uid)
-	plan.Flow = types.StringValue(rec.Flow)
-	plan.Enable = types.BoolValue(rec.Enable)
-	plan.LimitIP = types.Int64Value(rec.LimitIP)
-	plan.TotalGB = types.Int64Value(rec.TotalGB)
-	plan.ExpiryTime = types.Int64Value(rec.ExpiryTime)
-	plan.TgID = types.Int64Value(rec.TgID)
-	plan.SubID = types.StringValue(rec.SubID)
-	plan.Comment = types.StringValue(rec.Comment)
-	plan.Reset = types.Int64Value(rec.Reset)
+	finalizeClientSubID(&plan.SubID, *rec)
+	// Keep plan values for enable, limits, flow, etc. so post-apply state matches the
+	// plan (the panel GET right after add may still report enable=true).
 	if wantEmptyFlow {
 		plan.Flow = types.StringValue("")
 	}
