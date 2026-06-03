@@ -8,7 +8,7 @@ import (
 	"github.com/syegournov/xkeen-gen/terraform-provider-xui/internal/xui"
 )
 
-func planToPanelClientInput(email string, enable types.Bool, limitIP, totalGB, expiry, tgID, reset types.Int64, flow, subID, comment types.String, id, password string) xui.PanelClientInput {
+func planToPanelClientInput(email string, enable types.Bool, limitIP, totalGB, expiry, tgID, reset types.Int64, flow, subID, comment types.String, id, password, auth, security string) xui.PanelClientInput {
 	c := xui.PanelClientInput{
 		Email:      email,
 		Enable:     enable.ValueBool(),
@@ -23,6 +23,12 @@ func planToPanelClientInput(email string, enable types.Bool, limitIP, totalGB, e
 	}
 	if password != "" {
 		c.Password = password
+	}
+	if auth != "" {
+		c.Auth = auth
+	}
+	if security != "" {
+		c.Security = security
 	}
 	if !flow.IsNull() {
 		c.Flow = flow.ValueString()
@@ -72,4 +78,15 @@ func createPanelClient(cli *xui.Client, email string, inboundID int, input xui.P
 		return nil, fmt.Errorf("client %q not attached to inbound %d after create", email, inboundID)
 	}
 	return rec, nil
+}
+
+func applyCommonClientFields(enable *types.Bool, limitIP, totalGB, expiry, tgID, reset *types.Int64, subID, comment *types.String, rec xui.PanelClientRecord) {
+	*enable = types.BoolValue(rec.Enable)
+	*limitIP = types.Int64Value(rec.LimitIP)
+	*totalGB = types.Int64Value(rec.TotalGB)
+	*expiry = types.Int64Value(rec.ExpiryTime)
+	*tgID = types.Int64Value(rec.TgID)
+	*subID = types.StringValue(rec.SubID)
+	*comment = types.StringValue(rec.Comment)
+	*reset = types.Int64Value(rec.Reset)
 }

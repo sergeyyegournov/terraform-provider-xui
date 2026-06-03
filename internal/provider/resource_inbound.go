@@ -192,7 +192,7 @@ func (r *inboundResource) Create(ctx context.Context, req resource.CreateRequest
 		resp.Diagnostics.AddError("Invalid sniffing", err.Error())
 		return
 	}
-	settingsPayload, dummyUUID, err := ensureDummyInboundClient(plan.Settings.ValueString(), "")
+	settingsPayload, dummyUUID, err := ensureDummyInboundClient(plan.Settings.ValueString(), "", plan.Protocol.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Invalid settings", err.Error())
 		return
@@ -371,7 +371,7 @@ func (r *inboundResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 	var dummyUUID string
-	settingsMerged, dummyUUID, err = ensureDummyInboundClient(settingsMerged, state.DummyClientID.ValueString())
+	settingsMerged, dummyUUID, err = ensureDummyInboundClient(settingsMerged, state.DummyClientID.ValueString(), state.Protocol.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("settings", err.Error())
 		return
@@ -504,7 +504,7 @@ func (r *inboundResource) ensureDummyClientPresent(cur map[string]any, preferred
 		return cur, nil
 	}
 
-	settingsWithDummy, _, err := ensureDummyInboundClient(settingsJSON, preferredDummyUUID)
+	settingsWithDummy, _, err := ensureDummyInboundClient(settingsJSON, preferredDummyUUID, stringFromMap(cur, "protocol"))
 	if err != nil {
 		return nil, err
 	}

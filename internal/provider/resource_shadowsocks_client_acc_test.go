@@ -38,7 +38,7 @@ func TestAccShadowsocksClient_basic(t *testing.T) {
 			{
 				ResourceName:      "xui_shadowsocks_client.test",
 				ImportState:       true,
-				ImportStateIdFunc: importVLESSClientIDFunc("xui_shadowsocks_client.test"),
+				ImportStateIdFunc: importClientIDFunc("xui_shadowsocks_client.test"),
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{"password", "sub_id", "comment"},
 			},

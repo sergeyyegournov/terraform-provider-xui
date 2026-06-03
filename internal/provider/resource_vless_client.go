@@ -171,7 +171,7 @@ func (r *vlessClientResource) Create(ctx context.Context, req resource.CreateReq
 	}
 	input := planToPanelClientInput(
 		plan.Email.ValueString(), plan.Enable, plan.LimitIP, plan.TotalGB, plan.ExpiryTime, plan.TgID, plan.Reset,
-		plan.Flow, plan.SubID, plan.Comment, id, "",
+		plan.Flow, plan.SubID, plan.Comment, id, "", "", "",
 	)
 	wantEmptyFlow := !plan.Flow.IsNull() && plan.Flow.ValueString() == ""
 	wantEmptyComment := !plan.Comment.IsNull() && plan.Comment.ValueString() == ""
@@ -240,7 +240,7 @@ func (r *vlessClientResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 	input := planToPanelClientInput(
 		plan.Email.ValueString(), plan.Enable, plan.LimitIP, plan.TotalGB, plan.ExpiryTime, plan.TgID, plan.Reset,
-		plan.Flow, plan.SubID, plan.Comment, state.ID.ValueString(), "",
+		plan.Flow, plan.SubID, plan.Comment, state.ID.ValueString(), "", "", "",
 	)
 	if err := r.client.UpdateClient(state.Email.ValueString(), input); err != nil {
 		resp.Diagnostics.AddError("API error", err.Error())

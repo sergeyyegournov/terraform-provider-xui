@@ -89,9 +89,9 @@ func checkInboundDestroyed(s *terraform.State) error {
 	return nil
 }
 
-// importVLESSClientIDFunc builds an ImportStateIdFunc that emits
+// importClientIDFunc builds an ImportStateIdFunc that emits
 // `inbound_id:email` by reading the resource's current state.
-func importVLESSClientIDFunc(resourceName string) resource.ImportStateIdFunc {
+func importClientIDFunc(resourceName string) resource.ImportStateIdFunc {
 	return func(s *terraform.State) (string, error) {
 		rs, ok := s.RootModule().Resources[resourceName]
 		if !ok {

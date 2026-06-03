@@ -45,7 +45,7 @@ func TestAccVLESSClient_basic(t *testing.T) {
 			{
 				ResourceName:      "xui_vless_client.test",
 				ImportState:       true,
-				ImportStateIdFunc: importVLESSClientIDFunc("xui_vless_client.test"),
+				ImportStateIdFunc: importClientIDFunc("xui_vless_client.test"),
 				ImportStateVerify: true,
 				// Optional panel fields round-trip from the panel as null
 				// when they were never set; the user sees them as null in

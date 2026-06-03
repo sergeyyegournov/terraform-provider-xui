@@ -158,7 +158,7 @@ func (r *shadowsocksClientResource) Create(ctx context.Context, req resource.Cre
 	}
 	input := planToPanelClientInput(
 		plan.Email.ValueString(), plan.Enable, plan.LimitIP, plan.TotalGB, plan.ExpiryTime, plan.TgID, plan.Reset,
-		types.StringNull(), plan.SubID, plan.Comment, "", password,
+		types.StringNull(), plan.SubID, plan.Comment, "", password, "", "",
 	)
 	rec, err := createPanelClient(r.client, plan.Email.ValueString(), int(plan.InboundID.ValueInt64()), input)
 	if err != nil {
@@ -204,7 +204,7 @@ func (r *shadowsocksClientResource) Update(ctx context.Context, req resource.Upd
 	}
 	input := planToPanelClientInput(
 		plan.Email.ValueString(), plan.Enable, plan.LimitIP, plan.TotalGB, plan.ExpiryTime, plan.TgID, plan.Reset,
-		types.StringNull(), plan.SubID, plan.Comment, "", password,
+		types.StringNull(), plan.SubID, plan.Comment, "", password, "", "",
 	)
 	if err := r.client.UpdateClient(state.Email.ValueString(), input); err != nil {
 		resp.Diagnostics.AddError("API error", err.Error())

@@ -118,7 +118,10 @@ func (p *xuiProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewInboundResource,
 		NewVLESSClientResource,
+		NewVMessClientResource,
+		NewTrojanClientResource,
 		NewShadowsocksClientResource,
+		NewHysteriaClientResource,
 		NewXrayTemplateResource,
 		NewPanelSettingsResource,
 	}

@@ -65,12 +65,18 @@ resource "xui_panel_settings" "this" {
 - `ldap_user_filter` (String) LDAP user search filter.
 - `ldap_vless_field` (String) LDAP attribute mapped to VLESS identity.
 - `page_size` (Number) Number of items per page in lists.
+- `panel_proxy` (String) Proxy URL used by the panel for outbound requests.
 - `remark_model` (String) Remark model pattern for inbounds.
 - `restart_panel` (Boolean) If true, restart the panel after applying settings changes. Required for web listen/port/cert changes to take effect.
+- `restart_xray_on_client_disable` (Boolean) Restart Xray when clients are auto-disabled by expiry/traffic limits.
 - `session_max_age` (Number) Session maximum age in minutes.
 - `sub_announce` (String) Subscription announcement.
 - `sub_cert_file` (String) SSL certificate file for subscription server.
+- `sub_clash_enable` (Boolean) Enable Clash/Mihomo subscription endpoint.
+- `sub_clash_path` (String) Path for Clash/Mihomo subscription endpoint.
+- `sub_clash_uri` (String) Clash/Mihomo subscription URI.
 - `sub_domain` (String) Domain for subscription server validation.
+- `sub_email_in_remark` (Boolean) Include client email in generated subscription remark/name.
 - `sub_enable` (Boolean) Enable subscription server.
 - `sub_enable_routing` (Boolean) Enable routing for subscription.
 - `sub_encrypt` (Boolean) Encrypt subscription responses.
@@ -104,6 +110,7 @@ resource "xui_panel_settings" "this" {
 - `tg_run_time` (String) Cron schedule for Telegram notifications (e.g. `@daily`).
 - `time_location` (String) Time zone location (e.g. `UTC`, `Asia/Tehran`).
 - `traffic_diff` (Number) Traffic warning threshold percentage.
+- `trusted_proxy_cidrs` (String) Trusted reverse-proxy CIDRs used for forwarded headers.
 - `two_factor_enable` (Boolean) Enable two-factor authentication for the panel.
 - `two_factor_token` (String, Sensitive) Two-factor authentication secret / token.
 - `web_base_path` (String) Base path for panel URLs (e.g. `/<uuid>/`).

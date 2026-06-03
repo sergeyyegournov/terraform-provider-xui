@@ -11,6 +11,8 @@ import (
 type PanelClientRecord struct {
 	UUID       string `json:"uuid"`
 	Password   string `json:"password"`
+	Auth       string `json:"auth"`
+	Security   string `json:"security"`
 	Email      string `json:"email"`
 	Flow       string `json:"flow,omitempty"`
 	Enable     bool   `json:"enable"`
@@ -27,6 +29,8 @@ type PanelClientRecord struct {
 type PanelClientInput struct {
 	ID         string `json:"id,omitempty"`
 	Password   string `json:"password,omitempty"`
+	Auth       string `json:"auth,omitempty"`
+	Security   string `json:"security,omitempty"`
 	Email      string `json:"email"`
 	Flow       string `json:"flow,omitempty"`
 	Enable     bool   `json:"enable"`

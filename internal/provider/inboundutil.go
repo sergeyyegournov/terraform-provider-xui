@@ -198,10 +198,10 @@ func settingsIgnoreClients() planmodifier.String {
 }
 
 // ensureDummyInboundClient makes sure inbound settings always contain a reserved
-// sentinel client required by buggy panel APIs that reject empty client lists.
-// It keeps existing sentinel UUID when present; otherwise it reuses providedUUID
-// (if valid) or generates a fresh UUID.
-func ensureDummyInboundClient(settingsJSON, providedUUID string) (string, string, error) {
+// sentinel client required by panel APIs that reject empty client lists.
+// The returned marker string is stored in dummy_client_uuid (VLESS/VMess UUID,
+// Trojan password, Hysteria auth, etc.).
+func ensureDummyInboundClient(settingsJSON, providedMarker, protocol string) (string, string, error) {
 	var settings map[string]any
 	if err := json.Unmarshal([]byte(settingsJSON), &settings); err != nil {
 		return "", "", fmt.Errorf("parse settings: %w", err)
@@ -210,12 +210,8 @@ func ensureDummyInboundClient(settingsJSON, providedUUID string) (string, string
 		settings = map[string]any{}
 	}
 
-	var dummyUUID string
-	if u := strings.TrimSpace(providedUUID); u != "" {
-		if _, err := uuid.Parse(u); err == nil {
-			dummyUUID = u
-		}
-	}
+	marker := strings.TrimSpace(providedMarker)
+	protocol = strings.ToLower(strings.TrimSpace(protocol))
 
 	clients, _ := settings["clients"].([]any)
 	if clients == nil {
@@ -229,28 +225,16 @@ func ensureDummyInboundClient(settingsJSON, providedUUID string) (string, string
 		}
 		if em, _ := cm["email"].(string); em == inboundDummyClientEmail {
 			dummyIdx = i
-			if existingID, _ := cm["id"].(string); existingID != "" {
-				dummyUUID = existingID
+			if marker == "" {
+				marker = dummyMarkerFromClient(cm, protocol)
 			}
 			break
 		}
 	}
-	if dummyUUID == "" {
-		dummyUUID = uuid.NewString()
+	if marker == "" {
+		marker = newDummyMarker(protocol)
 	}
-	dummy := map[string]any{
-		"id":         dummyUUID,
-		"email":      inboundDummyClientEmail,
-		"flow":       "",
-		"enable":     true,
-		"limitIp":    0,
-		"totalGB":    0,
-		"expiryTime": 0,
-		"tgId":       0,
-		"subId":      "",
-		"comment":    "Managed by terraform-provider-xui. Do not delete.",
-		"reset":      0,
-	}
+	dummy := dummyClientMap(protocol, marker)
 	if dummyIdx >= 0 {
 		clients[dummyIdx] = dummy
 	} else {
@@ -261,7 +245,58 @@ func ensureDummyInboundClient(settingsJSON, providedUUID string) (string, string
 	if err != nil {
 		return "", "", err
 	}
-	return string(out), dummyUUID, nil
+	return string(out), marker, nil
+}
+
+func newDummyMarker(protocol string) string {
+	switch protocol {
+	case "trojan", "hysteria":
+		return strings.ReplaceAll(uuid.New().String(), "-", "")
+	default:
+		return uuid.New().String()
+	}
+}
+
+func dummyMarkerFromClient(cm map[string]any, protocol string) string {
+	switch protocol {
+	case "trojan":
+		if p, _ := cm["password"].(string); p != "" {
+			return p
+		}
+	case "hysteria":
+		if a, _ := cm["auth"].(string); a != "" {
+			return a
+		}
+	default:
+		if id, _ := cm["id"].(string); id != "" {
+			return id
+		}
+	}
+	return ""
+}
+
+func dummyClientMap(protocol, marker string) map[string]any {
+	dummy := map[string]any{
+		"email":      inboundDummyClientEmail,
+		"enable":     true,
+		"limitIp":    0,
+		"totalGB":    0,
+		"expiryTime": 0,
+		"tgId":       0,
+		"subId":      "",
+		"comment":    "Managed by terraform-provider-xui. Do not delete.",
+		"reset":      0,
+	}
+	switch protocol {
+	case "trojan":
+		dummy["password"] = marker
+	case "hysteria":
+		dummy["auth"] = marker
+	default:
+		dummy["id"] = marker
+		dummy["flow"] = ""
+	}
+	return dummy
 }
 
 func findDummyClientUUID(settingsJSON string) (string, error) {
@@ -279,8 +314,16 @@ func findDummyClientUUID(settingsJSON string) (string, error) {
 			continue
 		}
 		if em, _ := cm["email"].(string); em == inboundDummyClientEmail {
-			id, _ := cm["id"].(string)
-			return id, nil
+			if id, _ := cm["id"].(string); id != "" {
+				return id, nil
+			}
+			if p, _ := cm["password"].(string); p != "" {
+				return p, nil
+			}
+			if a, _ := cm["auth"].(string); a != "" {
+				return a, nil
+			}
+			return "", nil
 		}
 	}
 	return "", nil

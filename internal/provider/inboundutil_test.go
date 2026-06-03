@@ -45,7 +45,7 @@ func TestEnsureDummyInboundClient(t *testing.T) {
 	t.Parallel()
 
 	settings := `{"clients":[],"decryption":"none"}`
-	updated, dummyID, err := ensureDummyInboundClient(settings, "")
+	updated, dummyID, err := ensureDummyInboundClient(settings, "", "vless")
 	if err != nil {
 		t.Fatalf("ensureDummyInboundClient() error = %v", err)
 	}
