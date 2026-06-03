@@ -25,14 +25,8 @@ type Client struct {
 	csrfMu   sync.Mutex
 	csrf     string
 
-	// inboundMus serializes read-modify-write sequences against a single
-	// inbound's settings. 3x-ui's per-client endpoints (addClient,
-	// updateClient, delClient) are stubs / unreliable in current releases,
-	// so every client mutation this package performs is done by fetching
-	// the inbound, patching settings.clients, and pushing the whole inbound
-	// back via /panel/api/inbounds/update. Terraform runs sibling resources
-	// concurrently (for_each, -parallelism), so without this lock two
-	// parallel client upserts on the same inbound would clobber each other.
+	// inboundMus serializes read-modify-write against a single inbound's
+	// settings (e.g. xui_inbound sentinel client maintenance).
 	inboundMuMu sync.Mutex
 	inboundMus  map[int]*sync.Mutex
 }
@@ -498,19 +492,7 @@ func (c *Client) DeleteInbound(id int) error {
 }
 
 // LockInbound acquires the per-inbound read-modify-write mutex for id and
-// returns a release function the caller must defer. 3x-ui's per-client
-// endpoints (addClient / updateClient / delClient) don't reliably mutate the
-// underlying store, so the provider performs all client-level mutations by
-// reading the inbound, patching settings.clients in memory, and pushing the
-// full inbound back through /panel/api/inbounds/update. Terraform runs
-// sibling resources concurrently (for_each, -parallelism) and without this
-// lock two parallel upserts against the same inbound would race and one
-// would be lost.
-//
-// The lock is per-process, per-inbound-id. It does not protect against
-// concurrent writes from other clients (the panel web UI, another apply),
-// but it is sufficient for a single `terraform apply`, which is the only
-// concurrency model Terraform guarantees.
+// returns a release function the caller must defer.
 func (c *Client) LockInbound(id int) func() {
 	c.inboundMuMu.Lock()
 	if c.inboundMus == nil {

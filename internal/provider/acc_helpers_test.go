@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
@@ -179,30 +178,13 @@ func findClientUUIDByEmail(inboundID int, email string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	raw, err := cli.GetInbound(inboundID)
+	got, err := cli.GetClientByEmail(email)
 	if err != nil {
-		return "", fmt.Errorf("get inbound %d: %w", inboundID, err)
+		return "", fmt.Errorf("get client %q: %w", email, err)
 	}
-	var inbound map[string]any
-	if err := json.Unmarshal(raw, &inbound); err != nil {
-		return "", fmt.Errorf("decode inbound: %w", err)
-	}
-	settingsStr := jsonStringFromMap(inbound, "settings")
-	if strings.TrimSpace(settingsStr) == "" {
-		return "", nil
-	}
-	var settings struct {
-		Clients []struct {
-			ID    string `json:"id"`
-			Email string `json:"email"`
-		} `json:"clients"`
-	}
-	if err := json.Unmarshal([]byte(settingsStr), &settings); err != nil {
-		return "", fmt.Errorf("decode settings: %w", err)
-	}
-	for _, c := range settings.Clients {
-		if c.Email == email {
-			return c.ID, nil
+	for _, id := range got.InboundIDs {
+		if id == inboundID {
+			return xui.PanelClientUUID(got.Client), nil
 		}
 	}
 	return "", nil

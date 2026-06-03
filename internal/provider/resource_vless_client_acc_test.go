@@ -57,29 +57,13 @@ func TestAccVLESSClient_basic(t *testing.T) {
 	})
 }
 
-// TestAccVLESSClient_parallelFanout reproduces the drift and concurrency
-// pattern the user hit: many xui_vless_client instances on the same inbound,
-// created and refreshed in parallel by Terraform.
-//
-// Before the refactor, two bugs surfaced here at once:
-//   - The panel's addClient / updateClient endpoints are stubs that do not
-//     persist mutations, so plan/apply diverged from panel reality and the
-//     resource always showed "update in place" on the next plan.
-//   - Every client Create/Update did its own read-modify-write against
-//     settings.clients, and Terraform runs sibling resources in parallel
-//     (-parallelism 10 by default), so concurrent writes clobbered each
-//     other and some users would silently disappear from the inbound.
-//
-// The fix is the locked RMW path in upsertVLESSClient / removeVLESSClient,
-// both of which are exercised here: after apply we expect the refresh plan
-// to be empty (drift), and on the second step all 5 client rows must still
-// be present in state (no lost writes).
+// TestAccVLESSClient_parallelFanout applies many xui_vless_client resources on
+// the same inbound in parallel (Terraform default -parallelism). With the
+// dedicated /panel/api/clients API, concurrent creates must not clobber each
+// other; the second step expects an empty refresh plan (no drift).
 //
 // This test uses count rather than for_each because plugin-testing v1's
-// legacy state shim doesn't accept string for_each keys at destroy time
-// ("unexpected index type (string)"). count yields the same parallel-apply
-// behaviour for the purpose of this regression, and the underlying upsert
-// code is key-agnostic, so the for_each variant works the same in real use.
+// legacy state shim doesn't accept string for_each keys at destroy time.
 func TestAccVLESSClient_parallelFanout(t *testing.T) {
 	testAccPreCheck(t)
 	port := nextPort()
@@ -251,9 +235,8 @@ resource "xui_vless_client" "test" {
 `, providerConfig(), remark, port, email, limitIP)
 }
 
-// TestAccVLESSClient_emptyStringsNoDrift verifies that explicit empty strings
-// for optional fields are treated as equivalent to panel-returned null/empty
-// normalization and do not cause perpetual no-op updates.
+// TestAccVLESSClient_emptyStringsNoDrift verifies that an explicit empty
+// comment does not cause perpetual no-op updates when flow is set.
 func TestAccVLESSClient_emptyStringsNoDrift(t *testing.T) {
 	testAccPreCheck(t)
 	port := nextPort()
@@ -269,7 +252,6 @@ func TestAccVLESSClient_emptyStringsNoDrift(t *testing.T) {
 				Config: cfg,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("xui_vless_client.test", "flow", "xtls-rprx-vision"),
-					resource.TestCheckResourceAttr("xui_vless_client.test", "sub_id", ""),
 					resource.TestCheckResourceAttr("xui_vless_client.test", "comment", ""),
 				),
 			},
@@ -309,7 +291,6 @@ resource "xui_vless_client" "test" {
   inbound_id = xui_inbound.test.id
   email      = %q
   flow       = "xtls-rprx-vision"
-  sub_id     = ""
   comment    = ""
 }
 `, providerConfig(), remark, port, email)
