@@ -14,12 +14,13 @@ import (
 	"time"
 )
 
-// Client talks to a 3x-ui panel using the same cookie session as the web UI.
+// Client talks to a 3x-ui panel (v3+) via session cookies or an API bearer token.
 type Client struct {
 	baseURL  *url.URL
 	http     *http.Client
 	user     string
 	pass     string
+	apiToken string
 	loginMu  sync.Mutex
 	loggedIn bool
 	csrfMu   sync.Mutex
@@ -45,8 +46,8 @@ type Status struct {
 }
 
 // NewClient builds an HTTP client; baseURL must include the panel path prefix (e.g. https://host:port/<uuid>/).
-func NewClient(rawBaseURL, username, password string, insecureSkipVerify bool) (*Client, error) {
-	u, err := url.Parse(rawBaseURL)
+func NewClient(cfg ClientConfig) (*Client, error) {
+	u, err := url.Parse(cfg.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse base_url: %w", err)
 	}
@@ -61,7 +62,7 @@ func NewClient(rawBaseURL, username, password string, insecureSkipVerify bool) (
 		return nil, err
 	}
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipVerify},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: cfg.InsecureSkipVerify},
 	}
 	return &Client{
 		baseURL: u,
@@ -69,9 +70,24 @@ func NewClient(rawBaseURL, username, password string, insecureSkipVerify bool) (
 			Jar:       jar,
 			Transport: tr,
 		},
-		user: username,
-		pass: password,
+		user:     cfg.Username,
+		pass:     cfg.Password,
+		apiToken: strings.TrimSpace(cfg.APIToken),
 	}, nil
+}
+
+func (c *Client) usesBearerAuth(endpoint string) bool {
+	return c.apiToken != "" && strings.Contains(endpoint, "/panel/api/")
+}
+
+func (c *Client) prepareSession(endpoint string) error {
+	if c.usesBearerAuth(endpoint) {
+		return nil
+	}
+	if c.user == "" || c.pass == "" {
+		return fmt.Errorf("username and password are required for panel endpoints outside /panel/api/ (got %s)", endpoint)
+	}
+	return c.Login()
 }
 
 func (c *Client) join(elem ...string) (string, error) {
@@ -118,9 +134,7 @@ func (c *Client) loginLocked() error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	if token != "" {
-		req.Header.Set("X-CSRF-Token", token)
-	}
+	req.Header.Set("X-CSRF-Token", token)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -171,10 +185,6 @@ func (c *Client) fetchCSRFToken() (string, error) {
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		// Older 3x-ui releases did not expose /csrf-token.
-		return "", nil
 	}
 	if resp.StatusCode >= http.StatusBadRequest {
 		return "", fmt.Errorf("fetch csrf token: status %d; body=%s", resp.StatusCode, truncate(b, 512))
@@ -231,13 +241,14 @@ func (c *Client) get(path []string) (*APIResponse, error) {
 }
 
 func (c *Client) requestJSON(method, endpoint string, body []byte) (*APIResponse, error) {
-	if err := c.Login(); err != nil {
+	if err := c.prepareSession(endpoint); err != nil {
 		return nil, err
 	}
 	return c.requestJSONAuthed(method, endpoint, body, false)
 }
 
 func (c *Client) requestJSONAuthed(method, endpoint string, body []byte, retried bool) (*APIResponse, error) {
+	bearer := c.usesBearerAuth(endpoint)
 	doOnce := func() ([]byte, int, error) {
 		var rdr io.Reader
 		if body != nil {
@@ -251,8 +262,10 @@ func (c *Client) requestJSONAuthed(method, endpoint string, body []byte, retried
 			req.Header.Set("Content-Type", "application/json")
 		}
 		req.Header.Set("Accept", "application/json")
-		if token := c.csrfToken(); token != "" {
-			req.Header.Set("X-CSRF-Token", token)
+		if bearer {
+			req.Header.Set("Authorization", "Bearer "+c.apiToken)
+		} else if method != http.MethodGet && method != http.MethodHead {
+			req.Header.Set("X-CSRF-Token", c.csrfToken())
 		}
 		resp, err := c.http.Do(req)
 		if err != nil {
@@ -266,7 +279,7 @@ func (c *Client) requestJSONAuthed(method, endpoint string, body []byte, retried
 	if err != nil {
 		return nil, err
 	}
-	if shouldRetryAuth(status) && !retried {
+	if shouldRetrySession(status) && !retried && !bearer {
 		c.invalidateSession()
 		if err := c.Login(); err != nil {
 			return nil, err
@@ -283,7 +296,7 @@ func (c *Client) requestJSONAuthed(method, endpoint string, body []byte, retried
 	return &msg, nil
 }
 
-func shouldRetryAuth(status int) bool {
+func shouldRetrySession(status int) bool {
 	return status == http.StatusNotFound || status == http.StatusForbidden
 }
 
@@ -300,13 +313,14 @@ func (c *Client) postForm(path []string, payload map[string]string) (*APIRespons
 }
 
 func (c *Client) requestForm(endpoint string, form url.Values) (*APIResponse, error) {
-	if err := c.Login(); err != nil {
+	if err := c.prepareSession(endpoint); err != nil {
 		return nil, err
 	}
 	return c.requestFormAuthed(endpoint, form, false)
 }
 
 func (c *Client) requestFormAuthed(endpoint string, form url.Values, retried bool) (*APIResponse, error) {
+	bearer := c.usesBearerAuth(endpoint)
 	doOnce := func() ([]byte, int, error) {
 		req, err := http.NewRequest(http.MethodPost, endpoint, strings.NewReader(form.Encode()))
 		if err != nil {
@@ -314,8 +328,10 @@ func (c *Client) requestFormAuthed(endpoint string, form url.Values, retried boo
 		}
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		req.Header.Set("Accept", "application/json")
-		if token := c.csrfToken(); token != "" {
-			req.Header.Set("X-CSRF-Token", token)
+		if bearer {
+			req.Header.Set("Authorization", "Bearer "+c.apiToken)
+		} else {
+			req.Header.Set("X-CSRF-Token", c.csrfToken())
 		}
 		resp, err := c.http.Do(req)
 		if err != nil {
@@ -329,7 +345,7 @@ func (c *Client) requestFormAuthed(endpoint string, form url.Values, retried boo
 	if err != nil {
 		return nil, err
 	}
-	if shouldRetryAuth(status) && !retried {
+	if shouldRetrySession(status) && !retried && !bearer {
 		c.invalidateSession()
 		if err := c.Login(); err != nil {
 			return nil, err

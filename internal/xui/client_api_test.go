@@ -25,6 +25,10 @@ func TestClientAPIGetAddUpdateDelete(t *testing.T) {
 	}
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/ui/csrf-token", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"msg":"","obj":"test-csrf-token"}`))
+	})
 	mux.HandleFunc("/ui/login", func(w http.ResponseWriter, _ *http.Request) {
 		atomic.AddInt32(&loginCalls, 1)
 		w.Header().Set("Content-Type", "application/json")
@@ -85,10 +89,7 @@ func TestClientAPIGetAddUpdateDelete(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	c, err := NewClient(srv.URL+"/ui/", "u", "p", true)
-	if err != nil {
-		t.Fatalf("NewClient: %v", err)
-	}
+	c := newTestSessionClient(t, srv.URL+"/ui/")
 
 	got, err := c.GetClientByEmail("user@example.com")
 	if err != nil {

@@ -17,6 +17,10 @@ func TestClientListInboundsWithMockedAPI(t *testing.T) {
 	var listCalls int32
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/ui/csrf-token", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"msg":"","obj":"test-csrf-token"}`))
+	})
 	mux.HandleFunc("/ui/login", func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&loginCalls, 1)
 		if r.Method != http.MethodPost {
@@ -37,10 +41,7 @@ func TestClientListInboundsWithMockedAPI(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	c, err := NewClient(srv.URL+"/ui/", "u", "p", true)
-	if err != nil {
-		t.Fatalf("NewClient() error = %v", err)
-	}
+	c := newTestSessionClient(t, srv.URL+"/ui/")
 
 	raw, err := c.ListInbounds()
 	if err != nil {
@@ -72,6 +73,10 @@ func TestClientRequestJSONRetriesAfter404(t *testing.T) {
 	var listCalls int32
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/ui/csrf-token", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"msg":"","obj":"test-csrf-token"}`))
+	})
 	mux.HandleFunc("/ui/login", func(w http.ResponseWriter, _ *http.Request) {
 		atomic.AddInt32(&loginCalls, 1)
 		w.Header().Set("Content-Type", "application/json")
@@ -91,10 +96,7 @@ func TestClientRequestJSONRetriesAfter404(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	c, err := NewClient(srv.URL+"/ui/", "u", "p", true)
-	if err != nil {
-		t.Fatalf("NewClient() error = %v", err)
-	}
+	c := newTestSessionClient(t, srv.URL+"/ui/")
 	if _, err := c.ListInbounds(); err != nil {
 		t.Fatalf("ListInbounds() error = %v", err)
 	}
@@ -111,10 +113,7 @@ func TestGetXrayTemplateSupportsStringWrappedObj(t *testing.T) {
 	t.Parallel()
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ui/login", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"success":true,"msg":"ok","obj":null}`))
-	})
+	registerMockSessionRoutes(mux, "/ui")
 	mux.HandleFunc("/ui/panel/xray", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected xray method: %s", r.Method)
@@ -126,10 +125,7 @@ func TestGetXrayTemplateSupportsStringWrappedObj(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	c, err := NewClient(srv.URL+"/ui/", "u", "p", true)
-	if err != nil {
-		t.Fatalf("NewClient() error = %v", err)
-	}
+	c := newTestSessionClient(t, srv.URL+"/ui/")
 
 	got, err := c.GetXrayTemplate()
 	if err != nil {
@@ -147,10 +143,7 @@ func TestUpdateXrayTemplateUsesFormEndpoint(t *testing.T) {
 	var gotBody string
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ui/login", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"success":true,"msg":"ok","obj":null}`))
-	})
+	registerMockSessionRoutes(mux, "/ui")
 	mux.HandleFunc("/ui/panel/xray/update", func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&updateCalls, 1)
 		if r.Method != http.MethodPost {
@@ -168,10 +161,7 @@ func TestUpdateXrayTemplateUsesFormEndpoint(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	c, err := NewClient(srv.URL+"/ui/", "u", "p", true)
-	if err != nil {
-		t.Fatalf("NewClient() error = %v", err)
-	}
+	c := newTestSessionClient(t, srv.URL+"/ui/")
 	if err := c.UpdateXrayTemplate(`{"log":{"loglevel":"warning"}}`); err != nil {
 		t.Fatalf("UpdateXrayTemplate() error = %v", err)
 	}
@@ -190,10 +180,7 @@ func TestUpdatePanelSettingsPostsJSON(t *testing.T) {
 	var got map[string]any
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ui/login", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"success":true,"msg":"ok","obj":null}`))
-	})
+	registerMockSessionRoutes(mux, "/ui")
 	mux.HandleFunc("/ui/panel/setting/update", func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&updateCalls, 1)
 		if r.Method != http.MethodPost {
@@ -213,10 +200,7 @@ func TestUpdatePanelSettingsPostsJSON(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	c, err := NewClient(srv.URL+"/ui/", "u", "p", true)
-	if err != nil {
-		t.Fatalf("NewClient() error = %v", err)
-	}
+	c := newTestSessionClient(t, srv.URL+"/ui/")
 	if err := c.UpdatePanelSettings(map[string]any{"webPort": 2053, "tgBotEnable": true}); err != nil {
 		t.Fatalf("UpdatePanelSettings() error = %v", err)
 	}
@@ -235,10 +219,7 @@ func TestRestartXrayServiceUsesFormAndChecksXrayResult(t *testing.T) {
 	var resultCalls int32
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ui/login", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"success":true,"msg":"ok","obj":null}`))
-	})
+	registerMockSessionRoutes(mux, "/ui")
 	mux.HandleFunc("/ui/panel/api/server/restartXrayService", func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&restartCalls, 1)
 		if r.Method != http.MethodPost {
@@ -262,10 +243,7 @@ func TestRestartXrayServiceUsesFormAndChecksXrayResult(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	c, err := NewClient(srv.URL+"/ui/", "u", "p", true)
-	if err != nil {
-		t.Fatalf("NewClient() error = %v", err)
-	}
+	c := newTestSessionClient(t, srv.URL+"/ui/")
 	if err := c.RestartXrayService(); err != nil {
 		t.Fatalf("RestartXrayService() error = %v", err)
 	}
@@ -281,10 +259,7 @@ func TestRestartXrayServiceReturnsErrorWhenXrayResultNotEmpty(t *testing.T) {
 	t.Parallel()
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ui/login", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"success":true,"msg":"ok","obj":null}`))
-	})
+	registerMockSessionRoutes(mux, "/ui")
 	mux.HandleFunc("/ui/panel/api/server/restartXrayService", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"success":true,"msg":"Xray has been successfully relaunched.","obj":null}`))
@@ -297,10 +272,7 @@ func TestRestartXrayServiceReturnsErrorWhenXrayResultNotEmpty(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	c, err := NewClient(srv.URL+"/ui/", "u", "p", true)
-	if err != nil {
-		t.Fatalf("NewClient() error = %v", err)
-	}
+	c := newTestSessionClient(t, srv.URL+"/ui/")
 	if err := c.RestartXrayService(); err == nil {
 		t.Fatalf("expected error when xray result stays non-empty")
 	}

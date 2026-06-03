@@ -10,6 +10,7 @@ import (
 // The JSON "id" field is the panel database row id; VLESS UUID is in "uuid".
 type PanelClientRecord struct {
 	UUID       string `json:"uuid"`
+	Password   string `json:"password"`
 	Email      string `json:"email"`
 	Flow       string `json:"flow,omitempty"`
 	Enable     bool   `json:"enable"`
@@ -25,6 +26,7 @@ type PanelClientRecord struct {
 // PanelClientInput is the client body for POST add and update (model.Client wire shape).
 type PanelClientInput struct {
 	ID         string `json:"id,omitempty"`
+	Password   string `json:"password,omitempty"`
 	Email      string `json:"email"`
 	Flow       string `json:"flow,omitempty"`
 	Enable     bool   `json:"enable"`

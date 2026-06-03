@@ -3,7 +3,7 @@ package xui
 import "testing"
 
 func TestJoinPathPreservesBasePath(t *testing.T) {
-	c, err := NewClient("http://localhost:55002/tf-acc/", "u", "p", true)
+	c, err := NewClient(ClientConfig{BaseURL: "http://localhost:55002/tf-acc/", Username: "u", Password: "p"})
 	if err != nil {
 		t.Fatal(err)
 	}

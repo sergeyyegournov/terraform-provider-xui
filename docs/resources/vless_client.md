@@ -38,7 +38,7 @@ resource "xui_vless_client" "example" {
 - `sub_id` (String)
 - `tg_id` (Number)
 - `total_gb` (Number) Traffic limit in **bytes** (panel field `totalGB`; 0 = unlimited).
-- `uuid` (String) Static VLESS UUID. If empty, one is generated on create.
+- `uuid` (String) Static VLESS UUID. If omitted, the panel generates one on create.
 
 ### Read-Only
 

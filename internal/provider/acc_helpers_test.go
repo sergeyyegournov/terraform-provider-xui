@@ -17,7 +17,12 @@ func accClient() (*xui.Client, error) {
 	if accPanel == nil {
 		return nil, fmt.Errorf("accPanel not initialized; TF_ACC missing?")
 	}
-	return xui.NewClient(accPanel.BaseURL, accPanel.Username, accPanel.Password, true)
+	return xui.NewClient(xui.ClientConfig{
+		BaseURL:            accPanel.BaseURL,
+		Username:           accPanel.Username,
+		Password:           accPanel.Password,
+		InsecureSkipVerify: true,
+	})
 }
 
 // listInbounds returns all inbounds currently on the panel as a slice of maps.
@@ -85,8 +90,7 @@ func checkInboundDestroyed(s *terraform.State) error {
 }
 
 // importVLESSClientIDFunc builds an ImportStateIdFunc that emits
-// `<inbound_id>:<email>` by reading the resource's current state, matching
-// the vless_client resource's ImportState handler.
+// `inbound_id:email` by reading the resource's current state.
 func importVLESSClientIDFunc(resourceName string) resource.ImportStateIdFunc {
 	return func(s *terraform.State) (string, error) {
 		rs, ok := s.RootModule().Resources[resourceName]
