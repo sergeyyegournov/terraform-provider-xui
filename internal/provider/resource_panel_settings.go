@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -21,7 +20,7 @@ import (
 var _ resource.Resource = (*panelSettingsResource)(nil)
 var _ resource.ResourceWithImportState = (*panelSettingsResource)(nil)
 
-const panelSettingsJSONAttrNote = " Uses semantic JSON equality, so whitespace and key-order differences between config and the panel are not reported as drift."
+const panelSettingsJSONAttrNote = " Accepts empty/null (unset). Semantic JSON equality avoids whitespace and key-order drift."
 
 type panelSettingsResource struct {
 	client *xui.Client
@@ -458,32 +457,40 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 				Default:             stringdefault.StaticString(""),
 			},
 			"sub_json_fragment": schema.StringAttribute{
-				MarkdownDescription: "JSON subscription fragment configuration." + panelSettingsJSONAttrNote + " Omitted or empty panel values are treated as `{}`.",
+				MarkdownDescription: "JSON subscription fragment configuration." + panelSettingsJSONAttrNote,
 				Optional:            true,
 				Computed:            true,
-				CustomType:          jsontypes.NormalizedType{},
-				Default:             stringdefault.StaticString("{}"),
+				Default:             stringdefault.StaticString(""),
+				PlanModifiers: []planmodifier.String{
+					jsonSemanticString(),
+				},
 			},
 			"sub_json_noises": schema.StringAttribute{
-				MarkdownDescription: "JSON subscription noise configuration." + panelSettingsJSONAttrNote + " Omitted or empty panel values are treated as `{}`.",
+				MarkdownDescription: "JSON subscription noise configuration." + panelSettingsJSONAttrNote,
 				Optional:            true,
 				Computed:            true,
-				CustomType:          jsontypes.NormalizedType{},
-				Default:             stringdefault.StaticString("{}"),
+				Default:             stringdefault.StaticString(""),
+				PlanModifiers: []planmodifier.String{
+					jsonSemanticString(),
+				},
 			},
 			"sub_json_mux": schema.StringAttribute{
-				MarkdownDescription: "JSON subscription mux configuration." + panelSettingsJSONAttrNote + " Omitted or empty panel values are treated as `{}`.",
+				MarkdownDescription: "JSON subscription mux configuration." + panelSettingsJSONAttrNote,
 				Optional:            true,
 				Computed:            true,
-				CustomType:          jsontypes.NormalizedType{},
-				Default:             stringdefault.StaticString("{}"),
+				Default:             stringdefault.StaticString(""),
+				PlanModifiers: []planmodifier.String{
+					jsonSemanticString(),
+				},
 			},
 			"sub_json_rules": schema.StringAttribute{
-				MarkdownDescription: "JSON subscription routing rules." + panelSettingsJSONAttrNote + " Omitted or empty panel values are treated as `{}`.",
+				MarkdownDescription: "JSON subscription routing rules." + panelSettingsJSONAttrNote,
 				Optional:            true,
 				Computed:            true,
-				CustomType:          jsontypes.NormalizedType{},
-				Default:             stringdefault.StaticString("{}"),
+				Default:             stringdefault.StaticString(""),
+				PlanModifiers: []planmodifier.String{
+					jsonSemanticString(),
+				},
 			},
 			"sub_enable_routing": schema.BoolAttribute{
 				MarkdownDescription: "Enable routing for subscription.",
@@ -635,10 +642,10 @@ type panelSettingsModel struct {
 	SubURI                      types.String `tfsdk:"sub_uri"`
 	SubJSONPath                 types.String `tfsdk:"sub_json_path"`
 	SubJSONURI                  types.String `tfsdk:"sub_json_uri"`
-	SubJSONFragment             jsontypes.Normalized `tfsdk:"sub_json_fragment"`
-	SubJSONNoises               jsontypes.Normalized `tfsdk:"sub_json_noises"`
-	SubJSONMux                  jsontypes.Normalized `tfsdk:"sub_json_mux"`
-	SubJSONRules                jsontypes.Normalized `tfsdk:"sub_json_rules"`
+	SubJSONFragment             types.String `tfsdk:"sub_json_fragment"`
+	SubJSONNoises               types.String `tfsdk:"sub_json_noises"`
+	SubJSONMux                  types.String `tfsdk:"sub_json_mux"`
+	SubJSONRules                types.String `tfsdk:"sub_json_rules"`
 	SubEnableRouting            types.Bool           `tfsdk:"sub_enable_routing"`
 	SubRoutingRules             types.String `tfsdk:"sub_routing_rules"`
 	SubClashEnable              types.Bool   `tfsdk:"sub_clash_enable"`
@@ -720,10 +727,10 @@ func (r *panelSettingsResource) modelToPayload(m *panelSettingsModel) map[string
 		"subURI":                      m.SubURI.ValueString(),
 		"subJsonPath":                 m.SubJSONPath.ValueString(),
 		"subJsonURI":                  m.SubJSONURI.ValueString(),
-		"subJsonFragment":             panelJSONWireValue(m.SubJSONFragment),
-		"subJsonNoises":               panelJSONWireValue(m.SubJSONNoises),
-		"subJsonMux":                  panelJSONWireValue(m.SubJSONMux),
-		"subJsonRules":                panelJSONWireValue(m.SubJSONRules),
+		"subJsonFragment":             panelJSONWireValue(m.SubJSONFragment.ValueString()),
+		"subJsonNoises":               panelJSONWireValue(m.SubJSONNoises.ValueString()),
+		"subJsonMux":                  panelJSONWireValue(m.SubJSONMux.ValueString()),
+		"subJsonRules":                panelJSONWireValue(m.SubJSONRules.ValueString()),
 		"subEnableRouting":            m.SubEnableRouting.ValueBool(),
 		"subRoutingRules":             m.SubRoutingRules.ValueString(),
 		"subClashEnable":              m.SubClashEnable.ValueBool(),
@@ -803,10 +810,10 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.SubURI = types.StringValue(stringFromMap(m, "subURI"))
 	state.SubJSONPath = types.StringValue(stringFromMap(m, "subJsonPath"))
 	state.SubJSONURI = types.StringValue(stringFromMap(m, "subJsonURI"))
-	state.SubJSONFragment = normalizedJSONStringValue(stringFromMap(m, "subJsonFragment"))
-	state.SubJSONNoises = normalizedJSONStringValue(stringFromMap(m, "subJsonNoises"))
-	state.SubJSONMux = normalizedJSONStringValue(stringFromMap(m, "subJsonMux"))
-	state.SubJSONRules = normalizedJSONStringValue(stringFromMap(m, "subJsonRules"))
+	state.SubJSONFragment = types.StringValue(panelJSONStateValue(stringFromMap(m, "subJsonFragment")))
+	state.SubJSONNoises = types.StringValue(panelJSONStateValue(stringFromMap(m, "subJsonNoises")))
+	state.SubJSONMux = types.StringValue(panelJSONStateValue(stringFromMap(m, "subJsonMux")))
+	state.SubJSONRules = types.StringValue(panelJSONStateValue(stringFromMap(m, "subJsonRules")))
 	state.SubEnableRouting = types.BoolValue(boolFromMap(m, "subEnableRouting"))
 	state.SubRoutingRules = types.StringValue(stringFromMap(m, "subRoutingRules"))
 	state.SubClashEnable = types.BoolValue(boolFromMap(m, "subClashEnable"))
@@ -818,7 +825,7 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 }
 
 func validatePanelSettingsJSON(m *panelSettingsModel) error {
-	for name, val := range map[string]jsontypes.Normalized{
+	for name, val := range map[string]types.String{
 		"sub_json_fragment": m.SubJSONFragment,
 		"sub_json_noises":   m.SubJSONNoises,
 		"sub_json_mux":      m.SubJSONMux,

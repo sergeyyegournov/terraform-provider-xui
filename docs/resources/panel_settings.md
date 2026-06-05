@@ -81,11 +81,11 @@ resource "xui_panel_settings" "this" {
 - `sub_enable_routing` (Boolean) Enable routing for subscription.
 - `sub_encrypt` (Boolean) Encrypt subscription responses.
 - `sub_json_enable` (Boolean) Enable JSON subscription endpoint.
-- `sub_json_fragment` (String) JSON subscription fragment configuration. Uses semantic JSON equality, so whitespace and key-order differences between config and the panel are not reported as drift. Omitted or empty panel values are treated as `{}`.
-- `sub_json_mux` (String) JSON subscription mux configuration. Uses semantic JSON equality, so whitespace and key-order differences between config and the panel are not reported as drift. Omitted or empty panel values are treated as `{}`.
-- `sub_json_noises` (String) JSON subscription noise configuration. Uses semantic JSON equality, so whitespace and key-order differences between config and the panel are not reported as drift. Omitted or empty panel values are treated as `{}`.
+- `sub_json_fragment` (String) JSON subscription fragment configuration. Accepts empty/null (unset). Semantic JSON equality avoids whitespace and key-order drift.
+- `sub_json_mux` (String) JSON subscription mux configuration. Accepts empty/null (unset). Semantic JSON equality avoids whitespace and key-order drift.
+- `sub_json_noises` (String) JSON subscription noise configuration. Accepts empty/null (unset). Semantic JSON equality avoids whitespace and key-order drift.
 - `sub_json_path` (String) Path for JSON subscription endpoint.
-- `sub_json_rules` (String) JSON subscription routing rules. Uses semantic JSON equality, so whitespace and key-order differences between config and the panel are not reported as drift. Omitted or empty panel values are treated as `{}`.
+- `sub_json_rules` (String) JSON subscription routing rules. Accepts empty/null (unset). Semantic JSON equality avoids whitespace and key-order drift.
 - `sub_json_uri` (String) JSON subscription server URI.
 - `sub_key_file` (String) SSL private key file for subscription server.
 - `sub_listen` (String) Subscription server listen IP.

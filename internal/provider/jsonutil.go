@@ -17,9 +17,10 @@ package provider
 //     the raw string and the framework does the rest.
 //
 //     Used for: xui_xray_template.json, xui_inbound.stream_settings,
-//     xui_inbound.sniffing, xui_panel_settings subscription JSON fields
-//     (sub_json_fragment, sub_json_noises, sub_json_mux, sub_json_rules),
-//     and the matching data-source attributes.
+//     xui_inbound.sniffing, and the matching data-source attributes.
+//
+//     xui_panel_settings sub_json_* fields use plain strings plus
+//     jsonSemanticString plan modifiers instead (optional null/empty config).
 //
 //  2. canonicalizeInboundSettings (this file)
 //
@@ -45,11 +46,12 @@ package provider
 //     comparisons: that is what (1) and (2) are for.
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 )
 
 // compactJSON re-encodes a JSON string into compact form. If the input is
@@ -128,25 +130,80 @@ func validateOptionalJSONString(s, name string) error {
 	return nil
 }
 
-// emptyPanelJSONObject is the Normalized stand-in for an unset/empty panel JSON
-// string (jsontypes.Normalized rejects "").
-const emptyPanelJSONObject = "{}"
-
-// normalizedJSONStringValue wraps a raw JSON string for state/plan storage.
-func normalizedJSONStringValue(s string) jsontypes.Normalized {
-	if strings.TrimSpace(s) == "" {
-		return jsontypes.NewNormalizedValue(emptyPanelJSONObject)
-	}
-	return jsontypes.NewNormalizedValue(s)
+// panelJSONIsEmpty reports whether a panel subscription JSON field is unset.
+func panelJSONIsEmpty(s string) bool {
+	s = strings.TrimSpace(s)
+	return s == "" || s == "{}"
 }
 
-// panelJSONWireValue compacts non-empty JSON for panel API payloads. The empty
-// object sentinel is sent as "" because 3x-ui stores unset subscription JSON
-// fields as empty strings.
-func panelJSONWireValue(n jsontypes.Normalized) string {
-	s := strings.TrimSpace(n.ValueString())
-	if s == "" || s == emptyPanelJSONObject {
+// jsonSemanticEqual compares two JSON strings semantically. Empty string and
+// "{}" are treated as equivalent (3x-ui stores unset fields as "").
+func jsonSemanticEqual(a, b string) bool {
+	a = strings.TrimSpace(a)
+	b = strings.TrimSpace(b)
+	if panelJSONIsEmpty(a) && panelJSONIsEmpty(b) {
+		return true
+	}
+	if panelJSONIsEmpty(a) || panelJSONIsEmpty(b) {
+		return false
+	}
+	var va, vb any
+	if err := json.Unmarshal([]byte(a), &va); err != nil {
+		return false
+	}
+	if err := json.Unmarshal([]byte(b), &vb); err != nil {
+		return false
+	}
+	ca, err := json.Marshal(va)
+	if err != nil {
+		return false
+	}
+	cb, err := json.Marshal(vb)
+	if err != nil {
+		return false
+	}
+	return string(ca) == string(cb)
+}
+
+// panelJSONStateValue returns a compact JSON string for state, or "" when unset.
+func panelJSONStateValue(s string) string {
+	s = strings.TrimSpace(s)
+	if panelJSONIsEmpty(s) {
 		return ""
 	}
 	return compactJSON(s)
+}
+
+// panelJSONWireValue compacts non-empty JSON for panel API payloads.
+func panelJSONWireValue(s string) string {
+	if panelJSONIsEmpty(s) {
+		return ""
+	}
+	return compactJSON(s)
+}
+
+type jsonSemanticStringPlanModifier struct{}
+
+func (jsonSemanticStringPlanModifier) Description(_ context.Context) string {
+	return "Treats semantically equal JSON values as unchanged (whitespace, key order, and empty vs `{}`)."
+}
+
+func (jsonSemanticStringPlanModifier) MarkdownDescription(_ context.Context) string {
+	return "Treats semantically equal JSON values as unchanged (whitespace, key order, and empty vs `{}`)."
+}
+
+func (jsonSemanticStringPlanModifier) PlanModifyString(_ context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+	if req.PlanValue.IsUnknown() || req.PlanValue.IsNull() {
+		return
+	}
+	if req.StateValue.IsUnknown() || req.StateValue.IsNull() {
+		return
+	}
+	if jsonSemanticEqual(req.PlanValue.ValueString(), req.StateValue.ValueString()) {
+		resp.PlanValue = req.StateValue
+	}
+}
+
+func jsonSemanticString() planmodifier.String {
+	return jsonSemanticStringPlanModifier{}
 }
