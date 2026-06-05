@@ -17,7 +17,9 @@ package provider
 //     the raw string and the framework does the rest.
 //
 //     Used for: xui_xray_template.json, xui_inbound.stream_settings,
-//     xui_inbound.sniffing, and the matching data-source attributes.
+//     xui_inbound.sniffing, xui_panel_settings subscription JSON fields
+//     (sub_json_fragment, sub_json_noises, sub_json_mux, sub_json_rules,
+//     sub_routing_rules), and the matching data-source attributes.
 //
 //  2. canonicalizeInboundSettings (this file)
 //
@@ -44,6 +46,10 @@ package provider
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
+
+	"github.com/hashicorp/terraform-plugin-framework-jsontypes/jsontypes"
 )
 
 // compactJSON re-encodes a JSON string into compact form. If the input is
@@ -107,4 +113,40 @@ func canonicalizeInboundSettings(s string) string {
 		return compactJSON(s)
 	}
 	return string(out)
+}
+
+// validateOptionalJSONString accepts empty/whitespace (panel default) but requires
+// valid JSON when a non-empty value is set.
+func validateOptionalJSONString(s, name string) error {
+	if strings.TrimSpace(s) == "" {
+		return nil
+	}
+	var v any
+	if err := json.Unmarshal([]byte(s), &v); err != nil {
+		return fmt.Errorf("%s: %w", name, err)
+	}
+	return nil
+}
+
+// emptyPanelJSONObject is the Normalized stand-in for an unset/empty panel JSON
+// string (jsontypes.Normalized rejects "").
+const emptyPanelJSONObject = "{}"
+
+// normalizedJSONStringValue wraps a raw JSON string for state/plan storage.
+func normalizedJSONStringValue(s string) jsontypes.Normalized {
+	if strings.TrimSpace(s) == "" {
+		return jsontypes.NewNormalizedValue(emptyPanelJSONObject)
+	}
+	return jsontypes.NewNormalizedValue(s)
+}
+
+// panelJSONWireValue compacts non-empty JSON for panel API payloads. The empty
+// object sentinel is sent as "" because 3x-ui stores unset subscription JSON
+// fields as empty strings.
+func panelJSONWireValue(n jsontypes.Normalized) string {
+	s := strings.TrimSpace(n.ValueString())
+	if s == "" || s == emptyPanelJSONObject {
+		return ""
+	}
+	return compactJSON(s)
 }

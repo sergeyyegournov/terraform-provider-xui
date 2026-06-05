@@ -81,18 +81,18 @@ resource "xui_panel_settings" "this" {
 - `sub_enable_routing` (Boolean) Enable routing for subscription.
 - `sub_encrypt` (Boolean) Encrypt subscription responses.
 - `sub_json_enable` (Boolean) Enable JSON subscription endpoint.
-- `sub_json_fragment` (String) JSON subscription fragment configuration.
-- `sub_json_mux` (String) JSON subscription mux configuration.
-- `sub_json_noises` (String) JSON subscription noise configuration.
+- `sub_json_fragment` (String) JSON subscription fragment configuration. Uses semantic JSON equality, so whitespace and key-order differences between config and the panel are not reported as drift. Omitted or empty panel values are treated as `{}`.
+- `sub_json_mux` (String) JSON subscription mux configuration. Uses semantic JSON equality, so whitespace and key-order differences between config and the panel are not reported as drift. Omitted or empty panel values are treated as `{}`.
+- `sub_json_noises` (String) JSON subscription noise configuration. Uses semantic JSON equality, so whitespace and key-order differences between config and the panel are not reported as drift. Omitted or empty panel values are treated as `{}`.
 - `sub_json_path` (String) Path for JSON subscription endpoint.
-- `sub_json_rules` (String) JSON subscription routing rules.
+- `sub_json_rules` (String) JSON subscription routing rules. Uses semantic JSON equality, so whitespace and key-order differences between config and the panel are not reported as drift. Omitted or empty panel values are treated as `{}`.
 - `sub_json_uri` (String) JSON subscription server URI.
 - `sub_key_file` (String) SSL private key file for subscription server.
 - `sub_listen` (String) Subscription server listen IP.
 - `sub_path` (String) Base path for subscription URLs.
 - `sub_port` (Number) Subscription server port.
 - `sub_profile_url` (String) Subscription profile URL.
-- `sub_routing_rules` (String) Subscription global routing rules.
+- `sub_routing_rules` (String) Subscription global routing rules. Uses semantic JSON equality, so whitespace and key-order differences between config and the panel are not reported as drift. Omitted or empty panel values are treated as `{}`.
 - `sub_show_info` (Boolean) Show client information in subscriptions.
 - `sub_support_url` (String) Subscription support URL.
 - `sub_title` (String) Subscription title.
