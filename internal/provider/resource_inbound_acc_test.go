@@ -28,7 +28,6 @@ func TestAccInbound_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("xui_inbound.test", "enable", "true"),
 					resource.TestCheckResourceAttrSet("xui_inbound.test", "id"),
 					resource.TestCheckResourceAttrSet("xui_inbound.test", "tag"),
-					resource.TestCheckResourceAttrSet("xui_inbound.test", "dummy_client_uuid"),
 					testCheckResourceAttrPresent("xui_inbound.test", "public_ipv4"),
 					testCheckResourceAttrPresent("xui_inbound.test", "public_ipv6"),
 				),
@@ -38,25 +37,78 @@ func TestAccInbound_basic(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("xui_inbound.test", "remark", updatedRemark),
 					resource.TestCheckResourceAttr("xui_inbound.test", "port", fmt.Sprintf("%d", port)),
-					resource.TestCheckResourceAttrSet("xui_inbound.test", "dummy_client_uuid"),
 				),
 			},
 			{
 				ResourceName:            "xui_inbound.test",
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"dummy_client_uuid", "public_ipv4", "public_ipv6"},
+				ImportStateVerifyIgnore: []string{"public_ipv4", "public_ipv6"},
 			},
 		},
 	})
 }
 
-// TestAccInbound_importWithoutSentinel covers the scenario where a user
-// adopts a panel-native inbound that was created outside of Terraform and
-// therefore has no provider-managed sentinel client. On import, the
-// provider's Read must detect the missing sentinel and inject it via the
-// panel update API; after that the resource behaves like any other inbound.
-func TestAccInbound_importWithoutSentinel(t *testing.T) {
+// TestAccInbound_emptyClients verifies that a VLESS inbound can be created
+// with settings.clients = [] and stays empty on the panel across refresh
+// and non-client setting updates.
+func TestAccInbound_emptyClients(t *testing.T) {
+	testAccPreCheck(t)
+	port := nextPort()
+	remark := fmt.Sprintf("tf-acc-empty-%d", port)
+	updatedRemark := remark + "-upd"
+
+	var inboundID int
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             checkInboundDestroyed,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccInboundConfig(remark, port),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("xui_inbound.test", "id"),
+					func(s *terraform.State) error {
+						rs, ok := s.RootModule().Resources["xui_inbound.test"]
+						if !ok {
+							return fmt.Errorf("resource not found: xui_inbound.test")
+						}
+						id, err := strconv.Atoi(rs.Primary.ID)
+						if err != nil {
+							return err
+						}
+						inboundID = id
+						count, err := inboundClientCount(id)
+						if err != nil {
+							return err
+						}
+						if count != 0 {
+							return fmt.Errorf("expected 0 clients on panel after create, got %d", count)
+						}
+						return nil
+					},
+				),
+			},
+			{
+				Config: testAccInboundConfig(updatedRemark, port),
+				Check: func(s *terraform.State) error {
+					count, err := inboundClientCount(inboundID)
+					if err != nil {
+						return err
+					}
+					if count != 0 {
+						return fmt.Errorf("expected 0 clients on panel after update, got %d", count)
+					}
+					return nil
+				},
+			},
+		},
+	})
+}
+
+// TestAccInbound_importAdopted covers importing a panel-native inbound that
+// was created outside Terraform.
+func TestAccInbound_importAdopted(t *testing.T) {
 	testAccPreCheck(t)
 	port := nextPort()
 	remark := fmt.Sprintf("tf-acc-adopt-%d", port)
@@ -74,52 +126,20 @@ func TestAccInbound_importWithoutSentinel(t *testing.T) {
 						t.Fatalf("pre-create inbound via panel API: %v", err)
 					}
 					preCreatedID = id
-					// Sanity: the seeded inbound does NOT yet have a sentinel.
-					has, err := inboundHasSentinelClient(id)
-					if err != nil {
-						t.Fatalf("check sentinel absence: %v", err)
-					}
-					if has {
-						t.Fatalf("test setup corrupted: seeded inbound %d already has a sentinel", id)
-					}
 				},
 				Config:             testAccInboundAdoptedConfig(remark, port),
 				ResourceName:       "xui_inbound.adopted",
 				ImportState:        true,
-				ImportStatePersist: true, // carry imported state into subsequent steps so test teardown destroys the seeded inbound
+				ImportStatePersist: true,
 				ImportStateIdFunc:  func(_ *terraform.State) (string, error) { return strconv.Itoa(preCreatedID), nil },
-				ImportStateCheck: func(states []*terraform.InstanceState) error {
-					if len(states) == 0 {
-						return fmt.Errorf("import returned no instance state")
-					}
-					for _, s := range states {
-						uid := s.Attributes["dummy_client_uuid"]
-						if uid == "" {
-							return fmt.Errorf("expected sentinel dummy_client_uuid to be set after import, got empty")
-						}
-					}
-					return nil
-				},
 			},
 			{
 				Config: testAccInboundAdoptedConfig(remark, port),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("xui_inbound.adopted", "dummy_client_uuid"),
 					resource.TestCheckResourceAttr("xui_inbound.adopted", "remark", remark),
 					resource.TestCheckResourceAttr("xui_inbound.adopted", "port", strconv.Itoa(port)),
 					testCheckResourceAttrPresent("xui_inbound.adopted", "public_ipv4"),
 					testCheckResourceAttrPresent("xui_inbound.adopted", "public_ipv6"),
-					// Assert the sentinel landed on the panel too (not only in TF state).
-					func(*terraform.State) error {
-						has, err := inboundHasSentinelClient(preCreatedID)
-						if err != nil {
-							return err
-						}
-						if !has {
-							return fmt.Errorf("panel inbound %d still missing sentinel client after adopt+refresh", preCreatedID)
-						}
-						return nil
-					},
 				),
 			},
 		},

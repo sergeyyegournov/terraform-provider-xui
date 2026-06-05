@@ -27,7 +27,7 @@ type Client struct {
 	csrf     string
 
 	// inboundMus serializes read-modify-write against a single inbound's
-	// settings (e.g. xui_inbound sentinel client maintenance).
+	// settings (e.g. xui_inbound updates vs concurrent xui_*_client writes).
 	inboundMuMu sync.Mutex
 	inboundMus  map[int]*sync.Mutex
 }

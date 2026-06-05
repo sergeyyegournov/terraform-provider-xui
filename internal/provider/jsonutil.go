@@ -25,8 +25,8 @@ package provider
 //  2. canonicalizeInboundSettings (this file)
 //
 //     A structural normalizer for xui_inbound.settings. Unlike the blobs
-//     above, the provider actively manipulates this JSON: it maintains a
-//     sentinel client, and on update leaves the panel's client list alone.
+//     above, the provider actively manipulates this JSON: on update it
+//     leaves the panel's client list alone while applying other keys.
 //     The panel also mutates its own representation across endpoints —
 //     dropping empty-string client fields (`password`, `security`, …)
 //     between insert and update, and adding `created_at` / `updated_at`

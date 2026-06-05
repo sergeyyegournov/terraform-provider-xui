@@ -108,9 +108,8 @@ func importClientIDFunc(resourceName string) resource.ImportStateIdFunc {
 
 // createInboundBypassTerraform creates an inbound directly via the xui
 // client, bypassing Terraform entirely. This is used to seed acceptance
-// tests that need to verify import of an inbound that was NOT created by
-// this provider and therefore lacks the sentinel client. The returned id
-// is the panel-assigned inbound id; the caller is responsible for cleanup
+// tests that need to verify import of a panel-native inbound. The returned
+// id is the panel-assigned inbound id; the caller is responsible for cleanup
 // (usually Terraform Destroy after import).
 func createInboundBypassTerraform(remark string, port int) (int, error) {
 	cli, err := accClient()
@@ -152,27 +151,31 @@ func createInboundBypassTerraform(remark string, port int) (int, error) {
 	return int(idF), nil
 }
 
-// inboundHasSentinelClient returns whether the given inbound on the panel
-// contains the provider-managed sentinel client.
-func inboundHasSentinelClient(inboundID int) (bool, error) {
+// inboundClientCount returns the number of entries in settings.clients for
+// the given inbound on the panel.
+func inboundClientCount(inboundID int) (int, error) {
 	cli, err := accClient()
 	if err != nil {
-		return false, err
+		return 0, err
 	}
 	raw, err := cli.GetInbound(inboundID)
 	if err != nil {
-		return false, err
+		return 0, err
 	}
 	var inbound map[string]any
 	if err := json.Unmarshal(raw, &inbound); err != nil {
-		return false, err
+		return 0, err
 	}
 	settingsStr := jsonStringFromMap(inbound, "settings")
-	uid, err := findDummyClientUUID(settingsStr)
-	if err != nil {
-		return false, err
+	var settings map[string]any
+	if err := json.Unmarshal([]byte(settingsStr), &settings); err != nil {
+		return 0, err
 	}
-	return uid != "", nil
+	rawClients, ok := settings["clients"].([]any)
+	if !ok || rawClients == nil {
+		return 0, nil
+	}
+	return len(rawClients), nil
 }
 
 // findClientUUIDByEmail returns the VLESS client UUID for the given email on

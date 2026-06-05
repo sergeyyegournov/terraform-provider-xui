@@ -43,3 +43,13 @@ resource "xui_vless_client" "example" {
 ### Read-Only
 
 - `id` (String) Client UUID from the panel (server-generated unless `uuid` is set).
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+terraform import xui_vless_client.example 1:client@example.com
+```

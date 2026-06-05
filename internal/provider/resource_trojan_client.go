@@ -79,10 +79,6 @@ func (r *trojanClientResource) Create(ctx context.Context, req resource.CreateRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := validateClientEmail(plan.Email.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Invalid email", err.Error())
-		return
-	}
 	password := ""
 	if !plan.Password.IsNull() {
 		password = strings.TrimSpace(plan.Password.ValueString())

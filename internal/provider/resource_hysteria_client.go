@@ -79,10 +79,6 @@ func (r *hysteriaClientResource) Create(ctx context.Context, req resource.Create
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := validateClientEmail(plan.Email.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Invalid email", err.Error())
-		return
-	}
 	auth := ""
 	if !plan.Auth.IsNull() {
 		auth = strings.TrimSpace(plan.Auth.ValueString())

@@ -94,10 +94,6 @@ func (r *vmessClientResource) Create(ctx context.Context, req resource.CreateReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := validateClientEmail(plan.Email.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Invalid email", err.Error())
-		return
-	}
 	var id string
 	if uid := strings.TrimSpace(plan.UUID.ValueString()); uid != "" {
 		if _, err := uuid.Parse(uid); err != nil {

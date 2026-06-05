@@ -41,22 +41,6 @@ func TestMergeInboundSettingsPreservingClients(t *testing.T) {
 	}
 }
 
-func TestEnsureDummyInboundClient(t *testing.T) {
-	t.Parallel()
-
-	settings := `{"clients":[],"decryption":"none"}`
-	updated, dummyID, err := ensureDummyInboundClient(settings, "", "vless")
-	if err != nil {
-		t.Fatalf("ensureDummyInboundClient() error = %v", err)
-	}
-	if dummyID == "" {
-		t.Fatalf("expected generated dummy UUID")
-	}
-	if !strings.Contains(updated, inboundDummyClientEmail) {
-		t.Fatalf("expected dummy client email in settings: %s", updated)
-	}
-}
-
 func TestCanonicalizeInboundSettings(t *testing.T) {
 	t.Parallel()
 
@@ -137,15 +121,3 @@ func TestJSONStringFromMap_objectAndString(t *testing.T) {
 	}
 }
 
-func TestFindDummyClientUUID(t *testing.T) {
-	t.Parallel()
-
-	settings := `{"clients":[{"id":"11111111-1111-1111-1111-111111111111","email":"__xui_tf_do_not_delete__"}]}`
-	id, err := findDummyClientUUID(settings)
-	if err != nil {
-		t.Fatalf("findDummyClientUUID() error = %v", err)
-	}
-	if id != "11111111-1111-1111-1111-111111111111" {
-		t.Fatalf("unexpected dummy client id: %s", id)
-	}
-}

@@ -3,12 +3,12 @@
 page_title: "xui_inbound Resource - xui"
 subcategory: ""
 description: |-
-  A single 3x-ui / Xray inbound. Scalar fields mirror the panel export; settings, stream_settings, and sniffing are the same JSON strings as in an export (usually via jsonencode() or a heredoc). To work around panel APIs that require at least one client, this resource maintains a reserved sentinel client (__xui_tf_do_not_delete__) inside settings.clients. On update, any clients array inside settings is ignored and the panel’s current clients are preserved so separate client resources (e.g. xui_vless_client) keep working.
+  A single 3x-ui / Xray inbound. Scalar fields mirror the panel export; settings, stream_settings, and sniffing are the same JSON strings as in an export (usually via jsonencode() or a heredoc). On update, any clients array inside settings is ignored and the panel’s current clients are preserved so separate client resources (e.g. xui_vless_client) keep working.
 ---
 
 # xui_inbound (Resource)
 
-A single 3x-ui / Xray inbound. Scalar fields mirror the panel export; `settings`, `stream_settings`, and `sniffing` are the same JSON strings as in an export (usually via `jsonencode()` or a heredoc). To work around panel APIs that require at least one client, this resource maintains a reserved sentinel client (`__xui_tf_do_not_delete__`) inside `settings.clients`. On **update**, any `clients` array inside `settings` is **ignored** and the panel’s current clients are preserved so separate client resources (e.g. `xui_vless_client`) keep working.
+A single 3x-ui / Xray inbound. Scalar fields mirror the panel export; `settings`, `stream_settings`, and `sniffing` are the same JSON strings as in an export (usually via `jsonencode()` or a heredoc). On **update**, any `clients` array inside `settings` is **ignored** and the panel’s current clients are preserved so separate client resources (e.g. `xui_vless_client`) keep working.
 
 ## Example Usage
 
@@ -41,7 +41,7 @@ resource "xui_inbound" "example" {
 
 - `port` (Number) Inbound port (must be unique on the server).
 - `protocol` (String) Xray inbound protocol: `vless`, `vmess`, `trojan`, `shadowsocks`, `mixed`, etc. (same as export `protocol`).
-- `settings` (String) Protocol-specific `settings` JSON string, same as export `settings` (panel stores escaped JSON; in Terraform use `jsonencode()` on an object). On **create**, use the full object from an export or a minimal valid shape for your protocol. This resource always ensures a reserved sentinel client (`__xui_tf_do_not_delete__`) exists in `settings.clients`. On **update**, keys other than `clients` are applied; `clients` always come from the server.
+- `settings` (String) Protocol-specific `settings` JSON string, same as export `settings` (panel stores escaped JSON; in Terraform use `jsonencode()` on an object). On **create**, use the full object from an export or a minimal valid shape for your protocol (typically `clients = []` when users are managed via `xui_*_client` resources). On **update**, keys other than `clients` are applied; `clients` always come from the server.
 - `stream_settings` (String) `streamSettings` JSON string from export (transport + TLS/REALITY). See Xray [StreamSettingsObject](https://xtls.github.io/config/inbounds.html#streamsettingsobject). Compared with JSON semantic equality, so whitespace and key-order differences between your config and the panel do not show as drift.
 
 ### Optional
@@ -56,7 +56,6 @@ resource "xui_inbound" "example" {
 
 ### Read-Only
 
-- `dummy_client_uuid` (String) UUID of provider-managed reserved inbound client (`__xui_tf_do_not_delete__`) used to satisfy panel APIs that require at least one client.
 - `id` (Number) Inbound id assigned by the panel (use with `terraform import xui_inbound.NAME ID`).
 - `public_ipv4` (String) Public IPv4 reported by x-ui status endpoint.
 - `public_ipv6` (String) Public IPv6 reported by x-ui status endpoint.

@@ -4,14 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
-	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
-
-const inboundDummyClientEmail = "__xui_tf_do_not_delete__"
 
 func inboundMapFromJSON(raw []byte) (map[string]any, error) {
 	var m map[string]any
@@ -132,46 +128,17 @@ func mergeInboundSettingsPreservingClients(serverJSON, userJSON string) (string,
 	return string(out), nil
 }
 
-func findVLESSClientByEmail(settingsJSON, email string) (map[string]any, error) {
-	var root map[string]any
-	if err := json.Unmarshal([]byte(settingsJSON), &root); err != nil {
-		return nil, err
-	}
-	raw, ok := root["clients"].([]any)
-	if !ok {
-		return nil, fmt.Errorf("no clients in inbound settings")
-	}
-	for _, c := range raw {
-		cm, ok := c.(map[string]any)
-		if !ok {
-			continue
-		}
-		if em, _ := cm["email"].(string); em == email {
-			return cm, nil
-		}
-	}
-	return nil, fmt.Errorf("client with email %q not found", email)
-}
-
-func clientUUID(cm map[string]any) string {
-	id, _ := cm["id"].(string)
-	return id
-}
-
 // settingsIgnoreClientsPlanModifier projects the planned value of the
 // inbound `settings` attribute into the exact canonical form that the
 // resource will store in state after apply. Concretely, on Update it
 // takes the non-`clients` keys from the user's plan and grafts them onto
-// the current state's `clients` array (which the provider manages via
-// xui_vless_client and an internal sentinel client), then canonicalizes
-// the result. This gives Terraform a planned value that is byte-equal to
-// what the post-apply refresh will observe, which is what the framework's
-// "inconsistent result after apply" check requires.
+// the current state's `clients` array (managed via xui_*_client resources
+// or the panel), then canonicalizes the result. This gives Terraform a
+// planned value that is byte-equal to what the post-apply refresh will
+// observe, which is what the framework's "inconsistent result after apply"
+// check requires.
 //
-// On Create (state is null) the modifier is a no-op: the Create handler
-// stores the user's original value verbatim, and the subsequent Read
-// auto-refresh canonicalizes state (adding the sentinel). From the next
-// plan onwards the modifier takes over.
+// On Create (state is null) the modifier is a no-op.
 type settingsIgnoreClientsPlanModifier struct{}
 
 func (m settingsIgnoreClientsPlanModifier) Description(_ context.Context) string {
@@ -195,136 +162,4 @@ func (m settingsIgnoreClientsPlanModifier) PlanModifyString(_ context.Context, r
 
 func settingsIgnoreClients() planmodifier.String {
 	return settingsIgnoreClientsPlanModifier{}
-}
-
-// ensureDummyInboundClient makes sure inbound settings always contain a reserved
-// sentinel client required by panel APIs that reject empty client lists.
-// The returned marker string is stored in dummy_client_uuid (VLESS/VMess UUID,
-// Trojan password, Hysteria auth, etc.).
-func ensureDummyInboundClient(settingsJSON, providedMarker, protocol string) (string, string, error) {
-	var settings map[string]any
-	if err := json.Unmarshal([]byte(settingsJSON), &settings); err != nil {
-		return "", "", fmt.Errorf("parse settings: %w", err)
-	}
-	if settings == nil {
-		settings = map[string]any{}
-	}
-
-	marker := strings.TrimSpace(providedMarker)
-	protocol = strings.ToLower(strings.TrimSpace(protocol))
-
-	clients, _ := settings["clients"].([]any)
-	if clients == nil {
-		clients = []any{}
-	}
-	dummyIdx := -1
-	for i, c := range clients {
-		cm, ok := c.(map[string]any)
-		if !ok {
-			continue
-		}
-		if em, _ := cm["email"].(string); em == inboundDummyClientEmail {
-			dummyIdx = i
-			if marker == "" {
-				marker = dummyMarkerFromClient(cm, protocol)
-			}
-			break
-		}
-	}
-	if marker == "" {
-		marker = newDummyMarker(protocol)
-	}
-	dummy := dummyClientMap(protocol, marker)
-	if dummyIdx >= 0 {
-		clients[dummyIdx] = dummy
-	} else {
-		clients = append(clients, dummy)
-	}
-	settings["clients"] = clients
-	out, err := json.Marshal(settings)
-	if err != nil {
-		return "", "", err
-	}
-	return string(out), marker, nil
-}
-
-func newDummyMarker(protocol string) string {
-	switch protocol {
-	case "trojan", "hysteria":
-		return strings.ReplaceAll(uuid.New().String(), "-", "")
-	default:
-		return uuid.New().String()
-	}
-}
-
-func dummyMarkerFromClient(cm map[string]any, protocol string) string {
-	switch protocol {
-	case "trojan":
-		if p, _ := cm["password"].(string); p != "" {
-			return p
-		}
-	case "hysteria":
-		if a, _ := cm["auth"].(string); a != "" {
-			return a
-		}
-	default:
-		if id, _ := cm["id"].(string); id != "" {
-			return id
-		}
-	}
-	return ""
-}
-
-func dummyClientMap(protocol, marker string) map[string]any {
-	dummy := map[string]any{
-		"email":      inboundDummyClientEmail,
-		"enable":     true,
-		"limitIp":    0,
-		"totalGB":    0,
-		"expiryTime": 0,
-		"tgId":       0,
-		"subId":      "",
-		"comment":    "Managed by terraform-provider-xui. Do not delete.",
-		"reset":      0,
-	}
-	switch protocol {
-	case "trojan":
-		dummy["password"] = marker
-	case "hysteria":
-		dummy["auth"] = marker
-	default:
-		dummy["id"] = marker
-		dummy["flow"] = ""
-	}
-	return dummy
-}
-
-func findDummyClientUUID(settingsJSON string) (string, error) {
-	var root map[string]any
-	if err := json.Unmarshal([]byte(settingsJSON), &root); err != nil {
-		return "", err
-	}
-	raw, ok := root["clients"].([]any)
-	if !ok {
-		return "", nil
-	}
-	for _, c := range raw {
-		cm, ok := c.(map[string]any)
-		if !ok {
-			continue
-		}
-		if em, _ := cm["email"].(string); em == inboundDummyClientEmail {
-			if id, _ := cm["id"].(string); id != "" {
-				return id, nil
-			}
-			if p, _ := cm["password"].(string); p != "" {
-				return p, nil
-			}
-			if a, _ := cm["auth"].(string); a != "" {
-				return a, nil
-			}
-			return "", nil
-		}
-	}
-	return "", nil
 }

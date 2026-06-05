@@ -157,10 +157,6 @@ func (r *vlessClientResource) Create(ctx context.Context, req resource.CreateReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := validateClientEmail(plan.Email.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Invalid email", err.Error())
-		return
-	}
 	var id string
 	if uid := strings.TrimSpace(plan.UUID.ValueString()); uid != "" {
 		if _, err := uuid.Parse(uid); err != nil {
@@ -298,15 +294,5 @@ func parseClientImportID(id string) (int64, string, error) {
 	if email == "" {
 		return 0, "", fmt.Errorf("empty email in import id")
 	}
-	if err := validateClientEmail(email); err != nil {
-		return 0, "", err
-	}
 	return inboundID, email, nil
-}
-
-func validateClientEmail(email string) error {
-	if email == inboundDummyClientEmail {
-		return fmt.Errorf("email %q is reserved for provider-managed inbound sentinel client", inboundDummyClientEmail)
-	}
-	return nil
 }
