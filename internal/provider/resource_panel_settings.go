@@ -492,11 +492,10 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 				Default:             booldefault.StaticBool(false),
 			},
 			"sub_routing_rules": schema.StringAttribute{
-				MarkdownDescription: "Subscription global routing rules." + panelSettingsJSONAttrNote + " Omitted or empty panel values are treated as `{}`.",
+				MarkdownDescription: "Subscription global routing rules (plain text, not JSON).",
 				Optional:            true,
 				Computed:            true,
-				CustomType:          jsontypes.NormalizedType{},
-				Default:             stringdefault.StaticString("{}"),
+				Default:             stringdefault.StaticString(""),
 			},
 			"sub_clash_enable": schema.BoolAttribute{
 				MarkdownDescription: "Enable Clash/Mihomo subscription endpoint.",
@@ -641,7 +640,7 @@ type panelSettingsModel struct {
 	SubJSONMux                  jsontypes.Normalized `tfsdk:"sub_json_mux"`
 	SubJSONRules                jsontypes.Normalized `tfsdk:"sub_json_rules"`
 	SubEnableRouting            types.Bool           `tfsdk:"sub_enable_routing"`
-	SubRoutingRules             jsontypes.Normalized `tfsdk:"sub_routing_rules"`
+	SubRoutingRules             types.String `tfsdk:"sub_routing_rules"`
 	SubClashEnable              types.Bool   `tfsdk:"sub_clash_enable"`
 	SubClashPath                types.String `tfsdk:"sub_clash_path"`
 	SubClashURI                 types.String `tfsdk:"sub_clash_uri"`
@@ -726,7 +725,7 @@ func (r *panelSettingsResource) modelToPayload(m *panelSettingsModel) map[string
 		"subJsonMux":                  panelJSONWireValue(m.SubJSONMux),
 		"subJsonRules":                panelJSONWireValue(m.SubJSONRules),
 		"subEnableRouting":            m.SubEnableRouting.ValueBool(),
-		"subRoutingRules":             panelJSONWireValue(m.SubRoutingRules),
+		"subRoutingRules":             m.SubRoutingRules.ValueString(),
 		"subClashEnable":              m.SubClashEnable.ValueBool(),
 		"subClashPath":                m.SubClashPath.ValueString(),
 		"subClashURI":                 m.SubClashURI.ValueString(),
@@ -809,7 +808,7 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.SubJSONMux = normalizedJSONStringValue(stringFromMap(m, "subJsonMux"))
 	state.SubJSONRules = normalizedJSONStringValue(stringFromMap(m, "subJsonRules"))
 	state.SubEnableRouting = types.BoolValue(boolFromMap(m, "subEnableRouting"))
-	state.SubRoutingRules = normalizedJSONStringValue(stringFromMap(m, "subRoutingRules"))
+	state.SubRoutingRules = types.StringValue(stringFromMap(m, "subRoutingRules"))
 	state.SubClashEnable = types.BoolValue(boolFromMap(m, "subClashEnable"))
 	state.SubClashPath = types.StringValue(stringFromMap(m, "subClashPath"))
 	state.SubClashURI = types.StringValue(stringFromMap(m, "subClashURI"))
@@ -824,7 +823,6 @@ func validatePanelSettingsJSON(m *panelSettingsModel) error {
 		"sub_json_noises":   m.SubJSONNoises,
 		"sub_json_mux":      m.SubJSONMux,
 		"sub_json_rules":    m.SubJSONRules,
-		"sub_routing_rules": m.SubRoutingRules,
 	} {
 		if err := validateOptionalJSONString(val.ValueString(), name); err != nil {
 			return err

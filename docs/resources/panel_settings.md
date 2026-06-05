@@ -92,7 +92,7 @@ resource "xui_panel_settings" "this" {
 - `sub_path` (String) Base path for subscription URLs.
 - `sub_port` (Number) Subscription server port.
 - `sub_profile_url` (String) Subscription profile URL.
-- `sub_routing_rules` (String) Subscription global routing rules. Uses semantic JSON equality, so whitespace and key-order differences between config and the panel are not reported as drift. Omitted or empty panel values are treated as `{}`.
+- `sub_routing_rules` (String) Subscription global routing rules (plain text, not JSON).
 - `sub_show_info` (Boolean) Show client information in subscriptions.
 - `sub_support_url` (String) Subscription support URL.
 - `sub_title` (String) Subscription title.

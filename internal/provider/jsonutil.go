@@ -18,8 +18,8 @@ package provider
 //
 //     Used for: xui_xray_template.json, xui_inbound.stream_settings,
 //     xui_inbound.sniffing, xui_panel_settings subscription JSON fields
-//     (sub_json_fragment, sub_json_noises, sub_json_mux, sub_json_rules,
-//     sub_routing_rules), and the matching data-source attributes.
+//     (sub_json_fragment, sub_json_noises, sub_json_mux, sub_json_rules),
+//     and the matching data-source attributes.
 //
 //  2. canonicalizeInboundSettings (this file)
 //
