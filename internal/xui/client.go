@@ -300,6 +300,79 @@ func shouldRetrySession(status int) bool {
 	return status == http.StatusNotFound || status == http.StatusForbidden
 }
 
+// isAlternatePanelEndpointErr reports whether a panel request likely hit a
+// removed legacy route (3x-ui < v3.2.7) or an unregistered path that returns
+// an empty/non-JSON body. Callers use this to fall back between /panel/api/*
+// and the older /panel/setting/* and /panel/xray/* paths.
+func isAlternatePanelEndpointErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	if strings.Contains(s, "unexpected end of JSON input") ||
+		strings.Contains(s, "empty response") ||
+		strings.Contains(s, "404 page not found") {
+		return true
+	}
+	if strings.Contains(s, "; body=") && strings.Contains(s, "invalid character") {
+		return true
+	}
+	return strings.Contains(s, " 404") ||
+		strings.Contains(s, "status 404") ||
+		strings.Contains(s, " 405") ||
+		strings.Contains(s, "status 405") ||
+		strings.Contains(s, " 415") ||
+		strings.Contains(s, "status 415")
+}
+
+func (c *Client) postJSONFirst(paths [][]string, payload any) (*APIResponse, error) {
+	var lastErr error
+	for i, path := range paths {
+		msg, err := c.postJSON(path, payload)
+		if err == nil {
+			return msg, nil
+		}
+		lastErr = err
+		if i+1 < len(paths) && isAlternatePanelEndpointErr(err) {
+			continue
+		}
+		return nil, err
+	}
+	return nil, lastErr
+}
+
+func (c *Client) postFormFirst(paths [][]string, payload map[string]string) (*APIResponse, error) {
+	var lastErr error
+	for i, path := range paths {
+		msg, err := c.postForm(path, payload)
+		if err == nil {
+			return msg, nil
+		}
+		lastErr = err
+		if i+1 < len(paths) && isAlternatePanelEndpointErr(err) {
+			continue
+		}
+		return nil, err
+	}
+	return nil, lastErr
+}
+
+func (c *Client) getFirst(paths [][]string) (*APIResponse, error) {
+	var lastErr error
+	for i, path := range paths {
+		msg, err := c.get(path)
+		if err == nil {
+			return msg, nil
+		}
+		lastErr = err
+		if i+1 < len(paths) && isAlternatePanelEndpointErr(err) {
+			continue
+		}
+		return nil, err
+	}
+	return nil, lastErr
+}
+
 func (c *Client) postForm(path []string, payload map[string]string) (*APIResponse, error) {
 	endpoint, err := c.join(path...)
 	if err != nil {
@@ -374,37 +447,47 @@ func toJSONString(v any) (string, error) {
 	return compact.String(), nil
 }
 
-// GetXrayTemplate returns current Xray template JSON from /panel/xray/.
+// GetXrayTemplate returns current Xray template JSON from the panel.
 func (c *Client) GetXrayTemplate() (string, error) {
-	msg, err := c.postJSON([]string{"panel", "xray"}, map[string]any{})
+	msg, err := c.postJSONFirst([][]string{
+		{"panel", "api", "xray"},
+		{"panel", "xray"},
+	}, map[string]any{})
 	if err != nil {
 		return "", err
 	}
+	return decodeXrayTemplateObj(msg.Obj)
+}
+
+func decodeXrayTemplateObj(obj json.RawMessage) (string, error) {
 	var objString string
-	if err := json.Unmarshal(msg.Obj, &objString); err == nil {
+	if err := json.Unmarshal(obj, &objString); err == nil {
 		var wrap map[string]any
 		if err := json.Unmarshal([]byte(objString), &wrap); err != nil {
-			return "", fmt.Errorf("decode /panel/xray payload: %w", err)
+			return "", fmt.Errorf("decode xray template payload: %w", err)
 		}
 		if x, ok := wrap["xraySetting"]; ok {
 			return toJSONString(x)
 		}
-		return "", fmt.Errorf("decode /panel/xray payload: xraySetting missing")
+		return "", fmt.Errorf("decode xray template payload: xraySetting missing")
 	}
 	var wrap map[string]any
-	if err := json.Unmarshal(msg.Obj, &wrap); err != nil {
-		return "", fmt.Errorf("decode /panel/xray payload: %w", err)
+	if err := json.Unmarshal(obj, &wrap); err != nil {
+		return "", fmt.Errorf("decode xray template payload: %w", err)
 	}
 	x, ok := wrap["xraySetting"]
 	if !ok {
-		return "", fmt.Errorf("decode /panel/xray payload: xraySetting missing")
+		return "", fmt.Errorf("decode xray template payload: xraySetting missing")
 	}
 	return toJSONString(x)
 }
 
-// UpdateXrayTemplate saves Xray template JSON via /panel/xray/update.
+// UpdateXrayTemplate saves Xray template JSON via the panel xray update endpoint.
 func (c *Client) UpdateXrayTemplate(templateJSON string) error {
-	_, err := c.postForm([]string{"panel", "xray", "update"}, map[string]string{
+	_, err := c.postFormFirst([][]string{
+		{"panel", "api", "xray", "update"},
+		{"panel", "xray", "update"},
+	}, map[string]string{
 		"xraySetting": templateJSON,
 	})
 	return err
@@ -428,7 +511,10 @@ func (c *Client) RestartXrayService() error {
 
 // GetXrayResult returns current panel xray result string.
 func (c *Client) GetXrayResult() (string, error) {
-	msg, err := c.get([]string{"panel", "xray", "getXrayResult"})
+	msg, err := c.getFirst([][]string{
+		{"panel", "api", "xray", "getXrayResult"},
+		{"panel", "xray", "getXrayResult"},
+	})
 	if err != nil {
 		return "", err
 	}
@@ -526,7 +612,10 @@ func (c *Client) LockInbound(id int) func() {
 
 // GetPanelSettings returns all panel settings as a JSON map.
 func (c *Client) GetPanelSettings() (map[string]any, error) {
-	msg, err := c.postJSON([]string{"panel", "setting", "all"}, map[string]any{})
+	msg, err := c.postJSONFirst([][]string{
+		{"panel", "api", "setting", "all"},
+		{"panel", "setting", "all"},
+	}, map[string]any{})
 	if err != nil {
 		return nil, err
 	}
@@ -537,9 +626,12 @@ func (c *Client) GetPanelSettings() (map[string]any, error) {
 	return m, nil
 }
 
-// UpdatePanelSettings sends the full settings object to /panel/setting/update.
+// UpdatePanelSettings sends the full settings object to the panel update endpoint.
 func (c *Client) UpdatePanelSettings(settings map[string]any) error {
-	_, err := c.postJSON([]string{"panel", "setting", "update"}, settings)
+	_, err := c.postJSONFirst([][]string{
+		{"panel", "api", "setting", "update"},
+		{"panel", "setting", "update"},
+	}, settings)
 	return err
 }
 
@@ -565,28 +657,26 @@ func (c *Client) finishPanelRestart() error {
 	return c.waitForPanelReady(30 * time.Second)
 }
 
-// RestartPanel triggers /panel/setting/restartPanel.
+// RestartPanel triggers the panel restart endpoint.
 func (c *Client) RestartPanel() error {
-	// UI uses form body on this endpoint. Keep JSON and /panel/api/server
-	// variants as compatibility fallbacks for different panel builds.
-	_, err := c.postForm([]string{"panel", "setting", "restartPanel"}, map[string]string{})
+	// UI uses form body on this endpoint. Keep JSON and alternate paths as
+	// compatibility fallbacks for different panel builds.
+	restartPaths := [][]string{
+		{"panel", "api", "setting", "restartPanel"},
+		{"panel", "setting", "restartPanel"},
+		{"panel", "api", "server", "restartPanel"},
+	}
+	_, err := c.postFormFirst(restartPaths, map[string]string{})
 	if err == nil {
 		return c.finishPanelRestart()
 	}
-	_, jsonErr := c.postJSON([]string{"panel", "setting", "restartPanel"}, map[string]any{})
-	if jsonErr == nil {
-		return c.finishPanelRestart()
+	for _, path := range restartPaths {
+		if _, jsonErr := c.postJSON(path, map[string]any{}); jsonErr == nil {
+			return c.finishPanelRestart()
+		}
 	}
-	_, apiFormErr := c.postForm([]string{"panel", "api", "server", "restartPanel"}, map[string]string{})
-	if apiFormErr == nil {
-		return c.finishPanelRestart()
-	}
-	_, apiJSONErr := c.postJSON([]string{"panel", "api", "server", "restartPanel"}, map[string]any{})
-	if apiJSONErr == nil {
-		return c.finishPanelRestart()
-	}
-	if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "405") || strings.Contains(err.Error(), "415") {
-		return apiJSONErr
+	if isAlternatePanelEndpointErr(err) {
+		return fmt.Errorf("panel restart failed on all known endpoints: %w", err)
 	}
 	return err
 }

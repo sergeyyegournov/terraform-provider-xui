@@ -114,6 +114,13 @@ func TestGetXrayTemplateSupportsStringWrappedObj(t *testing.T) {
 
 	mux := http.NewServeMux()
 	registerMockSessionRoutes(mux, "/ui")
+	mux.HandleFunc("/ui/panel/api/xray", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected xray method: %s", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"msg":"","obj":"{\"xraySetting\":{\"log\":{\"loglevel\":\"warning\"}}}"}`))
+	})
 	mux.HandleFunc("/ui/panel/xray", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected xray method: %s", r.Method)
@@ -144,6 +151,19 @@ func TestUpdateXrayTemplateUsesFormEndpoint(t *testing.T) {
 
 	mux := http.NewServeMux()
 	registerMockSessionRoutes(mux, "/ui")
+	mux.HandleFunc("/ui/panel/api/xray/update", func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&updateCalls, 1)
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if ct := r.Header.Get("Content-Type"); !strings.Contains(ct, "application/x-www-form-urlencoded") {
+			t.Fatalf("unexpected content-type: %s", ct)
+		}
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"msg":"","obj":null}`))
+	})
 	mux.HandleFunc("/ui/panel/xray/update", func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&updateCalls, 1)
 		if r.Method != http.MethodPost {
@@ -173,6 +193,78 @@ func TestUpdateXrayTemplateUsesFormEndpoint(t *testing.T) {
 	}
 }
 
+func TestUpdateXrayTemplateFallsBackToAPIPath(t *testing.T) {
+	t.Parallel()
+
+	var apiCalls int32
+	var legacyCalls int32
+
+	mux := http.NewServeMux()
+	registerMockSessionRoutes(mux, "/ui")
+	mux.HandleFunc("/ui/panel/api/xray/update", func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&apiCalls, 1)
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"msg":"","obj":null}`))
+	})
+	mux.HandleFunc("/ui/panel/xray/update", func(w http.ResponseWriter, _ *http.Request) {
+		atomic.AddInt32(&legacyCalls, 1)
+		w.WriteHeader(http.StatusNotFound)
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	c := newTestSessionClient(t, srv.URL+"/ui/")
+	if err := c.UpdateXrayTemplate(`{"log":{"loglevel":"warning"}}`); err != nil {
+		t.Fatalf("UpdateXrayTemplate() error = %v", err)
+	}
+	if atomic.LoadInt32(&apiCalls) != 1 {
+		t.Fatalf("expected one api update call, got %d", apiCalls)
+	}
+	if atomic.LoadInt32(&legacyCalls) != 0 {
+		t.Fatalf("expected legacy path to be skipped after api success, got %d legacy calls", legacyCalls)
+	}
+}
+
+func TestUpdatePanelSettingsFallsBackToLegacyPath(t *testing.T) {
+	t.Parallel()
+
+	var apiCalls int32
+	var legacyCalls int32
+
+	mux := http.NewServeMux()
+	registerMockSessionRoutes(mux, "/ui")
+	mux.HandleFunc("/ui/panel/api/setting/update", func(w http.ResponseWriter, _ *http.Request) {
+		atomic.AddInt32(&apiCalls, 1)
+		w.WriteHeader(http.StatusNotFound)
+	})
+	mux.HandleFunc("/ui/panel/setting/update", func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&legacyCalls, 1)
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"msg":"","obj":null}`))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	c := newTestSessionClient(t, srv.URL+"/ui/")
+	if err := c.UpdatePanelSettings(map[string]any{"webPort": 2053}); err != nil {
+		t.Fatalf("UpdatePanelSettings() error = %v", err)
+	}
+	if atomic.LoadInt32(&apiCalls) < 1 {
+		t.Fatalf("expected at least one api update call, got %d", apiCalls)
+	}
+	if atomic.LoadInt32(&legacyCalls) != 1 {
+		t.Fatalf("expected one legacy update call, got %d", legacyCalls)
+	}
+}
+
 func TestUpdatePanelSettingsPostsJSON(t *testing.T) {
 	t.Parallel()
 
@@ -181,7 +273,7 @@ func TestUpdatePanelSettingsPostsJSON(t *testing.T) {
 
 	mux := http.NewServeMux()
 	registerMockSessionRoutes(mux, "/ui")
-	mux.HandleFunc("/ui/panel/setting/update", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/ui/panel/api/setting/update", func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&updateCalls, 1)
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
@@ -231,6 +323,14 @@ func TestRestartXrayServiceUsesFormAndChecksXrayResult(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"success":true,"msg":"Xray has been successfully relaunched.","obj":null}`))
 	})
+	mux.HandleFunc("/ui/panel/api/xray/getXrayResult", func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&resultCalls, 1)
+		if r.Method != http.MethodGet {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"msg":"","obj":""}`))
+	})
 	mux.HandleFunc("/ui/panel/xray/getXrayResult", func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&resultCalls, 1)
 		if r.Method != http.MethodGet {
@@ -263,6 +363,10 @@ func TestRestartXrayServiceReturnsErrorWhenXrayResultNotEmpty(t *testing.T) {
 	mux.HandleFunc("/ui/panel/api/server/restartXrayService", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"success":true,"msg":"Xray has been successfully relaunched.","obj":null}`))
+	})
+	mux.HandleFunc("/ui/panel/api/xray/getXrayResult", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"msg":"","obj":"some startup error"}`))
 	})
 	mux.HandleFunc("/ui/panel/xray/getXrayResult", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
