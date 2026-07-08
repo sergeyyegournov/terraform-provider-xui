@@ -1,6 +1,7 @@
 package xui
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 )
@@ -34,4 +35,23 @@ func newTestSessionClient(t *testing.T, baseURL string) *Client {
 		t.Fatalf("NewClient() error = %v", err)
 	}
 	return c
+}
+
+func registerMockPanelSettingsRoutes(mux *http.ServeMux, prefix string, current map[string]any) {
+	writeAll := func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		body, _ := json.Marshal(current)
+		_, _ = w.Write([]byte(`{"success":true,"msg":"","obj":` + string(body) + `}`))
+	}
+	mux.HandleFunc(prefix+"/panel/api/setting/all", writeAll)
+	mux.HandleFunc(prefix+"/panel/setting/all", writeAll)
+}
+
+func mockPanelSettingsBaseline() map[string]any {
+	return map[string]any{
+		"webPort":    float64(2053),
+		"smtpPort":   float64(587),
+		"smtpEnable": false,
+		"tgMemory":   float64(80),
+	}
 }

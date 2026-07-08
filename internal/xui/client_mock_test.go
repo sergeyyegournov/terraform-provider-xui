@@ -237,6 +237,7 @@ func TestUpdatePanelSettingsFallsBackToLegacyPath(t *testing.T) {
 
 	mux := http.NewServeMux()
 	registerMockSessionRoutes(mux, "/ui")
+	registerMockPanelSettingsRoutes(mux, "/ui", mockPanelSettingsBaseline())
 	mux.HandleFunc("/ui/panel/api/setting/update", func(w http.ResponseWriter, _ *http.Request) {
 		atomic.AddInt32(&apiCalls, 1)
 		w.WriteHeader(http.StatusNotFound)
@@ -273,6 +274,7 @@ func TestUpdatePanelSettingsPostsJSON(t *testing.T) {
 
 	mux := http.NewServeMux()
 	registerMockSessionRoutes(mux, "/ui")
+	registerMockPanelSettingsRoutes(mux, "/ui", mockPanelSettingsBaseline())
 	mux.HandleFunc("/ui/panel/api/setting/update", func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&updateCalls, 1)
 		if r.Method != http.MethodPost {
@@ -301,6 +303,9 @@ func TestUpdatePanelSettingsPostsJSON(t *testing.T) {
 	}
 	if got["webPort"] != float64(2053) || got["tgBotEnable"] != true {
 		t.Fatalf("unexpected payload: %#v", got)
+	}
+	if got["smtpPort"] != float64(587) {
+		t.Fatalf("expected merged smtpPort from current settings, got %#v", got["smtpPort"])
 	}
 }
 

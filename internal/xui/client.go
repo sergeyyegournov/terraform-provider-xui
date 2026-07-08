@@ -291,7 +291,7 @@ func (c *Client) requestJSONAuthed(method, endpoint string, body []byte, retried
 		return nil, fmt.Errorf("%s %s: %w; body=%s", method, endpoint, err, truncate(b, 512))
 	}
 	if !msg.Success {
-		return nil, fmt.Errorf("%s %s: %s", method, endpoint, msg.Msg)
+		return nil, formatAPIError(method, endpoint, &msg)
 	}
 	return &msg, nil
 }
@@ -300,6 +300,10 @@ func shouldRetrySession(status int) bool {
 	return status == http.StatusNotFound || status == http.StatusForbidden
 }
 
+// TODO(next release): drop 3x-ui v3.2.x panel/xray route compatibility — remove
+// isAlternatePanelEndpointErr, postJSONFirst/postFormFirst/getFirst, and legacy
+// /panel/setting/* + /panel/xray/* fallbacks; call /panel/api/* only.
+//
 // isAlternatePanelEndpointErr reports whether a panel request likely hit a
 // removed legacy route (3x-ui < v3.2.7) or an unregistered path that returns
 // an empty/non-JSON body. Callers use this to fall back between /panel/api/*
@@ -430,7 +434,7 @@ func (c *Client) requestFormAuthed(endpoint string, form url.Values, retried boo
 		return nil, fmt.Errorf("POST %s: %w; body=%s", endpoint, err, truncate(b, 512))
 	}
 	if !msg.Success {
-		return nil, fmt.Errorf("POST %s: %s", endpoint, msg.Msg)
+		return nil, formatAPIError("POST", endpoint, &msg)
 	}
 	return &msg, nil
 }
@@ -626,12 +630,19 @@ func (c *Client) GetPanelSettings() (map[string]any, error) {
 	return m, nil
 }
 
-// UpdatePanelSettings sends the full settings object to the panel update endpoint.
+// UpdatePanelSettings sends settings to the panel update endpoint. On newer
+// 3x-ui builds the handler validates the full AllSetting shape, so updates
+// are merged onto the current panel settings first.
 func (c *Client) UpdatePanelSettings(settings map[string]any) error {
-	_, err := c.postJSONFirst([][]string{
+	current, err := c.GetPanelSettings()
+	if err != nil {
+		return err
+	}
+	merged := mergePanelSettings(current, settings)
+	_, err = c.postJSONFirst([][]string{
 		{"panel", "api", "setting", "update"},
 		{"panel", "setting", "update"},
-	}, settings)
+	}, merged)
 	return err
 }
 

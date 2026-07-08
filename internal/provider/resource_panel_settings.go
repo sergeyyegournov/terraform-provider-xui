@@ -668,12 +668,12 @@ func (r *panelSettingsResource) modelToPayload(m *panelSettingsModel) map[string
 		"webKeyFile":                  m.WebKeyFile.ValueString(),
 		"webBasePath":                 m.WebBasePath.ValueString(),
 		"trustedProxyCIDRs":           m.TrustedProxyCIDRs.ValueString(),
-		"panelProxy":                  m.PanelProxy.ValueString(),
+		"panelOutbound":               m.PanelProxy.ValueString(),
 		"sessionMaxAge":               m.SessionMaxAge.ValueInt64(),
 		"pageSize":                    m.PageSize.ValueInt64(),
 		"expireDiff":                  m.ExpireDiff.ValueInt64(),
 		"trafficDiff":                 m.TrafficDiff.ValueInt64(),
-		"remarkModel":                 m.RemarkModel.ValueString(),
+		"remarkTemplate":              m.RemarkModel.ValueString(),
 		"datepicker":                  m.Datepicker.ValueString(),
 		"tgBotEnable":                 m.TgBotEnable.ValueBool(),
 		"tgBotToken":                  m.TgBotToken.ValueString(),
@@ -751,12 +751,13 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.WebKeyFile = types.StringValue(stringFromMap(m, "webKeyFile"))
 	state.WebBasePath = types.StringValue(stringFromMap(m, "webBasePath"))
 	state.TrustedProxyCIDRs = types.StringValue(stringFromMap(m, "trustedProxyCIDRs"))
-	state.PanelProxy = types.StringValue(stringFromMap(m, "panelProxy"))
+	// TODO(next release): read panelOutbound/remarkTemplate only after dropping 3.2.x support.
+	state.PanelProxy = types.StringValue(firstStringFromMap(m, "panelOutbound", "panelProxy"))
 	state.SessionMaxAge = types.Int64Value(int64FromMap(m, "sessionMaxAge"))
 	state.PageSize = types.Int64Value(int64FromMap(m, "pageSize"))
 	state.ExpireDiff = types.Int64Value(int64FromMap(m, "expireDiff"))
 	state.TrafficDiff = types.Int64Value(int64FromMap(m, "trafficDiff"))
-	state.RemarkModel = types.StringValue(stringFromMap(m, "remarkModel"))
+	state.RemarkModel = types.StringValue(firstStringFromMap(m, "remarkTemplate", "remarkModel"))
 	state.Datepicker = types.StringValue(stringFromMap(m, "datepicker"))
 	state.TgBotEnable = types.BoolValue(boolFromMap(m, "tgBotEnable"))
 	state.TgBotToken = types.StringValue(stringFromMap(m, "tgBotToken"))
