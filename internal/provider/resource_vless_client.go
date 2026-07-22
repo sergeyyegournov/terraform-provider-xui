@@ -86,7 +86,7 @@ func (r *vlessClientResource) Schema(_ context.Context, _ resource.SchemaRequest
 				},
 			},
 			"flow": schema.StringAttribute{
-				MarkdownDescription: "e.g. `xtls-rprx-vision` for XTLS Vision.",
+				MarkdownDescription: "e.g. `xtls-rprx-vision` for XTLS Vision. 3x-ui only persists flow on TLS/Reality-capable VLESS inbounds; other stream settings clear it.",
 				Optional:            true,
 				Computed:            true,
 				Default:             stringdefault.StaticString(""),

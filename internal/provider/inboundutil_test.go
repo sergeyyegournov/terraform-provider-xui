@@ -117,7 +117,6 @@ func TestJSONStringFromMap_objectAndString(t *testing.T) {
 		t.Fatalf("expected JSON object, got %q", got)
 	}
 	if jsonStringFromMap(obj, "streamSettings") != `{"network":"tcp"}` {
-		t.Fatalf("expected legacy string passthrough")
+		t.Fatalf("expected string passthrough")
 	}
 }
-

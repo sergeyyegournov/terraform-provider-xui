@@ -30,7 +30,7 @@ func (r *xrayTemplateResource) Metadata(_ context.Context, _ resource.MetadataRe
 
 func (r *xrayTemplateResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages full Xray template config JSON (`/panel/xray/update`). This is intentionally unopinionated: provide the full template JSON body and optionally restart Xray after apply.",
+		MarkdownDescription: "Manages full Xray template config JSON (`/panel/api/xray/update`). This is intentionally unopinionated: provide the full template JSON body and optionally restart Xray after apply.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
@@ -42,7 +42,7 @@ func (r *xrayTemplateResource) Schema(_ context.Context, _ resource.SchemaReques
 			"json": schema.StringAttribute{
 				Required:            true,
 				CustomType:          jsontypes.NormalizedType{},
-				MarkdownDescription: "Full Xray template JSON body sent to 3x-ui `POST /panel/xray/update` as `xraySetting`. The attribute uses semantic JSON equality, so whitespace and key-order differences between the config and the panel's stored value are not reported as drift.",
+				MarkdownDescription: "Full Xray template JSON body sent to 3x-ui `POST /panel/api/xray/update` as `xraySetting`. The attribute uses semantic JSON equality, so whitespace and key-order differences between the config and the panel's stored value are not reported as drift.",
 			},
 			"restart_xray": schema.BoolAttribute{
 				Optional:            true,

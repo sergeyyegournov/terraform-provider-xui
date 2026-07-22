@@ -36,7 +36,7 @@ func (r *panelSettingsResource) Metadata(_ context.Context, _ resource.MetadataR
 
 func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages 3x-ui panel settings (`/panel/setting/update`). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults. Set `restart_panel` to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). LDAP and two-factor fields mirror the panel's `AllSetting` model.",
+		MarkdownDescription: "Manages 3x-ui panel settings (`/panel/api/setting/update`). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults. Set `restart_panel` to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). LDAP and two-factor fields mirror the panel's `AllSetting` model.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
@@ -433,7 +433,7 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 				Default:             booldefault.StaticBool(false),
 			},
 			"sub_email_in_remark": schema.BoolAttribute{
-				MarkdownDescription: "Include client email in generated subscription remark/name.",
+				MarkdownDescription: "Include client email in generated subscription remark/name. Ignored on 3x-ui v3.4+ (use `remark_model` / `remarkTemplate` instead).",
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(true),
@@ -646,7 +646,7 @@ type panelSettingsModel struct {
 	SubJSONNoises               types.String `tfsdk:"sub_json_noises"`
 	SubJSONMux                  types.String `tfsdk:"sub_json_mux"`
 	SubJSONRules                types.String `tfsdk:"sub_json_rules"`
-	SubEnableRouting            types.Bool           `tfsdk:"sub_enable_routing"`
+	SubEnableRouting            types.Bool   `tfsdk:"sub_enable_routing"`
 	SubRoutingRules             types.String `tfsdk:"sub_routing_rules"`
 	SubClashEnable              types.Bool   `tfsdk:"sub_clash_enable"`
 	SubClashPath                types.String `tfsdk:"sub_clash_path"`
@@ -751,13 +751,12 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.WebKeyFile = types.StringValue(stringFromMap(m, "webKeyFile"))
 	state.WebBasePath = types.StringValue(stringFromMap(m, "webBasePath"))
 	state.TrustedProxyCIDRs = types.StringValue(stringFromMap(m, "trustedProxyCIDRs"))
-	// TODO(next release): read panelOutbound/remarkTemplate only after dropping 3.2.x support.
-	state.PanelProxy = types.StringValue(firstStringFromMap(m, "panelOutbound", "panelProxy"))
+	state.PanelProxy = types.StringValue(stringFromMap(m, "panelOutbound"))
 	state.SessionMaxAge = types.Int64Value(int64FromMap(m, "sessionMaxAge"))
 	state.PageSize = types.Int64Value(int64FromMap(m, "pageSize"))
 	state.ExpireDiff = types.Int64Value(int64FromMap(m, "expireDiff"))
 	state.TrafficDiff = types.Int64Value(int64FromMap(m, "trafficDiff"))
-	state.RemarkModel = types.StringValue(firstStringFromMap(m, "remarkTemplate", "remarkModel"))
+	state.RemarkModel = types.StringValue(stringFromMap(m, "remarkTemplate"))
 	state.Datepicker = types.StringValue(stringFromMap(m, "datepicker"))
 	state.TgBotEnable = types.BoolValue(boolFromMap(m, "tgBotEnable"))
 	state.TgBotToken = types.StringValue(stringFromMap(m, "tgBotToken"))
@@ -766,7 +765,9 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.TgBotChatID = types.StringValue(stringFromMap(m, "tgBotChatId"))
 	state.TgRunTime = types.StringValue(stringFromMap(m, "tgRunTime"))
 	state.TgBotBackup = types.BoolValue(boolFromMap(m, "tgBotBackup"))
-	state.TgBotLoginNotify = types.BoolValue(boolFromMap(m, "tgBotLoginNotify"))
+	if _, ok := m["tgBotLoginNotify"]; ok {
+		state.TgBotLoginNotify = types.BoolValue(boolFromMap(m, "tgBotLoginNotify"))
+	}
 	state.TgCPU = types.Int64Value(int64FromMap(m, "tgCpu"))
 	state.TgLang = types.StringValue(stringFromMap(m, "tgLang"))
 	state.TimeLocation = types.StringValue(stringFromMap(m, "timeLocation"))
@@ -806,13 +807,23 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.SubKeyFile = types.StringValue(stringFromMap(m, "subKeyFile"))
 	state.SubUpdates = types.Int64Value(int64FromMap(m, "subUpdates"))
 	state.SubEncrypt = types.BoolValue(boolFromMap(m, "subEncrypt"))
-	state.SubShowInfo = types.BoolValue(boolFromMap(m, "subShowInfo"))
-	state.SubEmailInRemark = types.BoolValue(boolFromMap(m, "subEmailInRemark"))
+	// subShowInfo / subEmailInRemark / subJsonFragment / subJsonNoises were
+	// removed from AllSetting in 3x-ui v3.4+; keep prior state when absent.
+	if _, ok := m["subShowInfo"]; ok {
+		state.SubShowInfo = types.BoolValue(boolFromMap(m, "subShowInfo"))
+	}
+	if _, ok := m["subEmailInRemark"]; ok {
+		state.SubEmailInRemark = types.BoolValue(boolFromMap(m, "subEmailInRemark"))
+	}
 	state.SubURI = types.StringValue(stringFromMap(m, "subURI"))
 	state.SubJSONPath = types.StringValue(stringFromMap(m, "subJsonPath"))
 	state.SubJSONURI = types.StringValue(stringFromMap(m, "subJsonURI"))
-	state.SubJSONFragment = types.StringValue(panelJSONStateValue(stringFromMap(m, "subJsonFragment")))
-	state.SubJSONNoises = types.StringValue(panelJSONStateValue(stringFromMap(m, "subJsonNoises")))
+	if _, ok := m["subJsonFragment"]; ok {
+		state.SubJSONFragment = types.StringValue(panelJSONStateValue(stringFromMap(m, "subJsonFragment")))
+	}
+	if _, ok := m["subJsonNoises"]; ok {
+		state.SubJSONNoises = types.StringValue(panelJSONStateValue(stringFromMap(m, "subJsonNoises")))
+	}
 	state.SubJSONMux = types.StringValue(panelJSONStateValue(stringFromMap(m, "subJsonMux")))
 	state.SubJSONRules = types.StringValue(panelJSONStateValue(stringFromMap(m, "subJsonRules")))
 	state.SubEnableRouting = types.BoolValue(boolFromMap(m, "subEnableRouting"))

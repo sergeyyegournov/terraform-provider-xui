@@ -9,21 +9,22 @@ func TestMergePanelSettingsPreservesServerOnlyFields(t *testing.T) {
 	t.Parallel()
 
 	current := map[string]any{
-		"webPort":           float64(2053),
-		"smtpPort":          float64(587),
-		"smtpEnable":        false,
-		"tgMemory":          float64(80),
-		"panelOutbound":     "direct",
-		"remarkTemplate":    "{{INBOUND}}",
-		"hasTgBotToken":     true,
-		"hasSmtpPassword":   false,
+		"webPort":         float64(2053),
+		"smtpPort":        float64(587),
+		"smtpEnable":      false,
+		"tgMemory":        float64(80),
+		"panelOutbound":   "direct",
+		"remarkTemplate":  "{{INBOUND}}",
+		"hasTgBotToken":   true,
+		"hasSmtpPassword": false,
 	}
 	updates := map[string]any{
-		"webPort":      int64(8443),
-		"panelProxy":   "should-map",
-		"remarkModel":  "legacy-remark",
+		"webPort":          int64(8443),
+		"panelOutbound":    "should-map",
+		"remarkTemplate":   "updated-remark",
 		"tgBotLoginNotify": true,
-		"subShowInfo":  true,
+		"subShowInfo":      true,
+		"subEmailInRemark": true,
 	}
 
 	merged := mergePanelSettings(current, updates)
@@ -37,20 +38,20 @@ func TestMergePanelSettingsPreservesServerOnlyFields(t *testing.T) {
 	if merged["tgMemory"] != float64(80) {
 		t.Fatalf("tgMemory = %v, want preserved 80", merged["tgMemory"])
 	}
-	if _, ok := merged["panelProxy"]; !ok {
-		t.Fatal("panelProxy mirror should be present for legacy panels")
+	if _, ok := merged["panelProxy"]; ok {
+		t.Fatal("panelProxy should not be mirrored")
 	}
-	if _, ok := merged["remarkModel"]; !ok {
-		t.Fatal("remarkModel mirror should be present for legacy panels")
+	if _, ok := merged["remarkModel"]; ok {
+		t.Fatal("remarkModel should not be mirrored")
 	}
 	if merged["panelOutbound"] != "should-map" {
-		t.Fatalf("panelOutbound = %v, want alias from panelProxy", merged["panelOutbound"])
+		t.Fatalf("panelOutbound = %v, want should-map", merged["panelOutbound"])
 	}
-	if merged["remarkTemplate"] != "legacy-remark" {
-		t.Fatalf("remarkTemplate = %v, want alias from remarkModel", merged["remarkTemplate"])
+	if merged["remarkTemplate"] != "updated-remark" {
+		t.Fatalf("remarkTemplate = %v, want updated-remark", merged["remarkTemplate"])
 	}
-	if _, ok := merged["tgBotLoginNotify"]; !ok {
-		t.Fatal("tgBotLoginNotify should be preserved in merged payload")
+	if _, ok := merged["tgBotLoginNotify"]; ok {
+		t.Fatal("tgBotLoginNotify should be stripped as deprecated")
 	}
 	if _, ok := merged["hasTgBotToken"]; ok {
 		t.Fatal("hasTgBotToken should be stripped from merged payload")

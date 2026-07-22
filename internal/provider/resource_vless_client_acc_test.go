@@ -79,8 +79,8 @@ func TestAccVLESSClient_parallelFanout(t *testing.T) {
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue(
 						"xui_vless_client.users[0]",
-						tfjsonpath.New("flow"),
-						knownvalue.StringExact("xtls-rprx-vision"),
+						tfjsonpath.New("comment"),
+						knownvalue.StringExact("user 0"),
 					),
 					statecheck.ExpectKnownValue(
 						"xui_vless_client.users[4]",
@@ -125,7 +125,6 @@ resource "xui_vless_client" "users" {
   count      = %d
   inbound_id = xui_inbound.test.id
   email      = "%s-${count.index}"
-  flow       = "xtls-rprx-vision"
   sub_id     = "sub-${count.index}"
   comment    = "user ${count.index}"
 }
@@ -151,7 +150,6 @@ func TestAccVLESSClient_fullAttributes(t *testing.T) {
 			{
 				Config: cfg,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("xui_vless_client.test", "flow", "xtls-rprx-vision"),
 					resource.TestCheckResourceAttr("xui_vless_client.test", "sub_id", "sub-abc"),
 					resource.TestCheckResourceAttr("xui_vless_client.test", "comment", "primary user"),
 					resource.TestCheckResourceAttr("xui_vless_client.test", "limit_ip", "2"),
@@ -194,7 +192,6 @@ resource "xui_inbound" "test" {
 resource "xui_vless_client" "test" {
   inbound_id  = xui_inbound.test.id
   email       = %q
-  flow        = "xtls-rprx-vision"
   sub_id      = "sub-abc"
   comment     = "primary user"
   limit_ip    = 2
@@ -236,7 +233,7 @@ resource "xui_vless_client" "test" {
 }
 
 // TestAccVLESSClient_emptyStringsNoDrift verifies that an explicit empty
-// comment does not cause perpetual no-op updates when flow is set.
+// comment does not cause perpetual no-op updates.
 func TestAccVLESSClient_emptyStringsNoDrift(t *testing.T) {
 	testAccPreCheck(t)
 	port := nextPort()
@@ -251,7 +248,6 @@ func TestAccVLESSClient_emptyStringsNoDrift(t *testing.T) {
 			{
 				Config: cfg,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("xui_vless_client.test", "flow", "xtls-rprx-vision"),
 					resource.TestCheckResourceAttr("xui_vless_client.test", "comment", ""),
 				),
 			},
@@ -290,7 +286,6 @@ resource "xui_inbound" "test" {
 resource "xui_vless_client" "test" {
   inbound_id = xui_inbound.test.id
   email      = %q
-  flow       = "xtls-rprx-vision"
   comment    = ""
 }
 `, providerConfig(), remark, port, email)

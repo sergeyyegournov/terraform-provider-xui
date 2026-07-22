@@ -3,12 +3,12 @@
 page_title: "xui_panel_settings Resource - xui"
 subcategory: ""
 description: |-
-  Manages 3x-ui panel settings (/panel/setting/update). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults. Set restart_panel to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). LDAP and two-factor fields mirror the panel's AllSetting model.
+  Manages 3x-ui panel settings (/panel/api/setting/update). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults. Set restart_panel to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). LDAP and two-factor fields mirror the panel's AllSetting model.
 ---
 
 # xui_panel_settings (Resource)
 
-Manages 3x-ui panel settings (`/panel/setting/update`). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults. Set `restart_panel` to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). LDAP and two-factor fields mirror the panel's `AllSetting` model.
+Manages 3x-ui panel settings (`/panel/api/setting/update`). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults. Set `restart_panel` to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). LDAP and two-factor fields mirror the panel's `AllSetting` model.
 
 ## Example Usage
 
@@ -76,7 +76,7 @@ resource "xui_panel_settings" "this" {
 - `sub_clash_path` (String) Path for Clash/Mihomo subscription endpoint.
 - `sub_clash_uri` (String) Clash/Mihomo subscription URI.
 - `sub_domain` (String) Domain for subscription server validation.
-- `sub_email_in_remark` (Boolean) Include client email in generated subscription remark/name.
+- `sub_email_in_remark` (Boolean) Include client email in generated subscription remark/name. Ignored on 3x-ui v3.4+ (use `remark_model` / `remarkTemplate` instead).
 - `sub_enable` (Boolean) Enable subscription server.
 - `sub_enable_routing` (Boolean) Enable routing for subscription.
 - `sub_encrypt` (Boolean) Encrypt subscription responses.

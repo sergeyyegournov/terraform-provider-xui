@@ -1,8 +1,4 @@
 // Package xui includes panel settings merge helpers used when talking to 3x-ui.
-//
-// TODO(next release): drop 3x-ui v3.2.x panel-settings compatibility — remove
-// panelSettingsKeyAliases, mirrorLegacyPanelSettingsKey, and legacy field
-// mirrors (panelProxy/remarkModel) once v3.2.6 support is no longer required.
 package xui
 
 import (
@@ -21,22 +17,14 @@ var panelSettingsReadOnlyKeys = map[string]struct{}{
 	"hasSmtpPassword":   {},
 }
 
-// panelSettingsKeyAliases maps legacy provider/panel keys to the current
-// AllSetting JSON field names expected by 3x-ui v3.2.7+.
-var panelSettingsKeyAliases = map[string]string{
-	"panelProxy":   "panelOutbound",
-	"remarkModel":  "remarkTemplate",
-}
-
-// deprecatedPanelSettingsKeys are no longer accepted by newer AllSetting
-// handlers and must not be sent on update.
-var deprecatedPanelSettingsKeys = map[string]struct{}{}
-
-func canonicalPanelSettingsKey(key string) string {
-	if alias, ok := panelSettingsKeyAliases[key]; ok {
-		return alias
-	}
-	return key
+// deprecatedPanelSettingsKeys are no longer accepted by current AllSetting
+// handlers (removed in 3x-ui v3.4+) and must not be sent on update.
+var deprecatedPanelSettingsKeys = map[string]struct{}{
+	"subEmailInRemark": {},
+	"subShowInfo":      {},
+	"tgBotLoginNotify": {},
+	"subJsonFragment":  {},
+	"subJsonNoises":    {},
 }
 
 func mergePanelSettings(current, updates map[string]any) map[string]any {
@@ -51,23 +39,12 @@ func mergePanelSettings(current, updates map[string]any) map[string]any {
 		if _, ro := panelSettingsReadOnlyKeys[k]; ro {
 			continue
 		}
-		key := canonicalPanelSettingsKey(k)
-		if _, deprecated := deprecatedPanelSettingsKeys[key]; deprecated {
+		if _, deprecated := deprecatedPanelSettingsKeys[k]; deprecated {
 			continue
 		}
-		merged[key] = v
-		mirrorLegacyPanelSettingsKey(merged, key, v)
+		merged[k] = v
 	}
 	return merged
-}
-
-func mirrorLegacyPanelSettingsKey(merged map[string]any, key string, value any) {
-	switch key {
-	case "remarkTemplate":
-		merged["remarkModel"] = value
-	case "panelOutbound":
-		merged["panelProxy"] = value
-	}
 }
 
 func formatAPIError(method, endpoint string, msg *APIResponse) error {

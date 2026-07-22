@@ -44,7 +44,6 @@ func registerMockPanelSettingsRoutes(mux *http.ServeMux, prefix string, current 
 		_, _ = w.Write([]byte(`{"success":true,"msg":"","obj":` + string(body) + `}`))
 	}
 	mux.HandleFunc(prefix+"/panel/api/setting/all", writeAll)
-	mux.HandleFunc(prefix+"/panel/setting/all", writeAll)
 }
 
 func mockPanelSettingsBaseline() map[string]any {

@@ -30,14 +30,14 @@ func (p *xuiProvider) Metadata(_ context.Context, _ provider.MetadataRequest, re
 
 func (p *xuiProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manage [3x-ui](https://github.com/MHSanaei/3x-ui/) v3+ panel resources via the HTTP API. Authenticate with a panel API token (`api_token`) or username/password session (CSRF-protected). API-token auth applies to `/panel/api/*`; panel settings and Xray template endpoints require username and password.",
+		MarkdownDescription: "Manage [3x-ui](https://github.com/MHSanaei/3x-ui/) v3+ panel resources via the HTTP API. Authenticate with a panel API token (`api_token`) or username/password session (CSRF-protected). Both modes apply to `/panel/api/*`.",
 		Attributes: map[string]schema.Attribute{
 			"base_url": schema.StringAttribute{
 				MarkdownDescription: "Panel root URL including random path prefix, e.g. `https://host:port/<uuid>/`.",
 				Required:            true,
 			},
 			"username": schema.StringAttribute{
-				MarkdownDescription: "Panel login username. Required when using password session auth, and for `/panel/setting/*` and `/panel/xray/*` even if `api_token` is set.",
+				MarkdownDescription: "Panel login username. Required when using password session auth.",
 				Optional:            true,
 			},
 			"password": schema.StringAttribute{

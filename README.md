@@ -2,7 +2,7 @@
 
 Terraform provider to manage [3x-ui](https://github.com/MHSanaei/3x-ui/) **v3+** panels over the HTTP API. It targets inbounds, per-protocol clients, panel settings, and Xray templates—the same objects you configure in the web UI.
 
-Requires a 3x-ui panel that exposes the v3 API (`/panel/api/*`, CSRF-protected session auth, optional API tokens).
+Requires a 3x-ui panel that exposes the v3 API (`/panel/api/*`, CSRF-protected session auth or optional API tokens). Requires 3x-ui **v3.4.0+** (settings/Xray under `/panel/api`, `panelOutbound` / `remarkTemplate` field names).
 
 ## Features
 
@@ -21,7 +21,7 @@ Client secrets (`uuid`, `password`, `auth`) can be set in Terraform or left unse
 ## Requirements
 
 - [Terraform](https://www.terraform.io/downloads) >= 1.0
-- A reachable 3x-ui v3+ panel
+- A reachable 3x-ui **v3.4.0+** panel
 
 ## Provider configuration
 
@@ -38,17 +38,12 @@ terraform {
 provider "xui" {
   base_url = "https://panel.example.com/your-random-path/" # trailing slash as in the panel URL
 
-  # Option A: API token (recommended for inbounds / clients)
+  # Option A: API token (recommended)
   api_token = var.xui_api_token
 
   # Option B: username + password (session + CSRF)
   # username = var.xui_username
   # password = var.xui_password
-
-  # Option A + B: token for /panel/api/*, password session for settings / Xray template
-  # username = var.xui_username
-  # password = var.xui_password
-  # api_token = var.xui_api_token
 
   insecure_skip_verify = false # set true only for self-signed TLS in lab setups
 }
@@ -58,10 +53,10 @@ provider "xui" {
 |----------|-------------|
 | `base_url` | Panel root URL including the random path prefix. |
 | `api_token` | Bearer token for `/panel/api/*` (Settings → API tokens in the panel). |
-| `username` / `password` | Session auth; required for `xui_panel_settings` and `xui_xray_template`, and when not using a token. |
+| `username` / `password` | Session auth when not using a token. |
 | `insecure_skip_verify` | Skip TLS certificate verification. |
 
-You must set **`api_token`**, or **`username` and `password`**, or both (token plus credentials for settings endpoints).
+You must set **`api_token`**, or **`username` and `password`**.
 
 ## Quick start
 
@@ -142,7 +137,7 @@ make testacc  # acceptance tests (Docker + 3x-ui container)
 make docs     # regenerate docs/ from schema
 ```
 
-Acceptance tests use [testcontainers](https://golang.testcontainers.org/) with `ghcr.io/mhsanaei/3x-ui:v3.2.0`. Docker must be running.
+Acceptance tests use [testcontainers](https://golang.testcontainers.org/) with `ghcr.io/mhsanaei/3x-ui:v3.5.0`. Docker must be running.
 
 ## Releasing
 

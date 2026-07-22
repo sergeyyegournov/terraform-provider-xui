@@ -3,12 +3,12 @@
 page_title: "xui_xray_template Resource - xui"
 subcategory: ""
 description: |-
-  Manages full Xray template config JSON (/panel/xray/update). This is intentionally unopinionated: provide the full template JSON body and optionally restart Xray after apply.
+  Manages full Xray template config JSON (/panel/api/xray/update). This is intentionally unopinionated: provide the full template JSON body and optionally restart Xray after apply.
 ---
 
 # xui_xray_template (Resource)
 
-Manages full Xray template config JSON (`/panel/xray/update`). This is intentionally unopinionated: provide the full template JSON body and optionally restart Xray after apply.
+Manages full Xray template config JSON (`/panel/api/xray/update`). This is intentionally unopinionated: provide the full template JSON body and optionally restart Xray after apply.
 
 ## Example Usage
 
@@ -87,7 +87,7 @@ resource "xui_xray_template" "example" {
 
 ### Required
 
-- `json` (String) Full Xray template JSON body sent to 3x-ui `POST /panel/xray/update` as `xraySetting`. The attribute uses semantic JSON equality, so whitespace and key-order differences between the config and the panel's stored value are not reported as drift.
+- `json` (String) Full Xray template JSON body sent to 3x-ui `POST /panel/api/xray/update` as `xraySetting`. The attribute uses semantic JSON equality, so whitespace and key-order differences between the config and the panel's stored value are not reported as drift.
 
 ### Optional
 

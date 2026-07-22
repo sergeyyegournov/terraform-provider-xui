@@ -32,7 +32,7 @@ resource "xui_vless_client" "example" {
 - `comment` (String)
 - `enable` (Boolean)
 - `expiry_time` (Number) Expiry in milliseconds since Unix epoch (0 = never).
-- `flow` (String) e.g. `xtls-rprx-vision` for XTLS Vision.
+- `flow` (String) e.g. `xtls-rprx-vision` for XTLS Vision. 3x-ui only persists flow on TLS/Reality-capable VLESS inbounds; other stream settings clear it.
 - `limit_ip` (Number)
 - `reset` (Number)
 - `sub_id` (String)

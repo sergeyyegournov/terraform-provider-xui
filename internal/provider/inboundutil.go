@@ -43,22 +43,8 @@ func stringFromMap(m map[string]any, key string) string {
 	return s
 }
 
-func firstStringFromMap(m map[string]any, keys ...string) string {
-	for _, key := range keys {
-		if s := stringFromMap(m, key); s != "" {
-			return s
-		}
-	}
-	for _, key := range keys {
-		if _, ok := m[key]; ok {
-			return stringFromMap(m, key)
-		}
-	}
-	return ""
-}
-
 // jsonStringFromMap returns a JSON text value for an inbound field that 3x-ui
-// may return either as a string (legacy wire shape) or as a nested object (v3+).
+// may return either as a string or as a nested object.
 func jsonStringFromMap(m map[string]any, key string) string {
 	v, ok := m[key]
 	if !ok || v == nil {

@@ -132,7 +132,6 @@ func TestAccVLESSClient_explicitAttributes(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("xui_vless_client.test", "uuid", testAccExplicitClientUUID),
 					resource.TestCheckResourceAttr("xui_vless_client.test", "id", testAccExplicitClientUUID),
-					resource.TestCheckResourceAttr("xui_vless_client.test", "flow", "xtls-rprx-vision"),
 					accClientExplicitCommonChecks("xui_vless_client.test"),
 				),
 			},
@@ -158,7 +157,6 @@ resource "xui_vless_client" "test" {
   inbound_id  = xui_inbound.test.id
   email       = %q
   uuid        = %q
-  flow        = "xtls-rprx-vision"
   sub_id      = "sub-explicit"
   comment     = "explicit attrs"
   limit_ip    = 2
