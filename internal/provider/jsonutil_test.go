@@ -5,10 +5,10 @@ import "testing"
 func TestValidateOptionalJSONString(t *testing.T) {
 	t.Parallel()
 
-	if err := validateOptionalJSONString("", "sub_json_fragment"); err != nil {
+	if err := validateOptionalJSONString("", "sub_json_final_mask"); err != nil {
 		t.Fatalf("empty: %v", err)
 	}
-	if err := validateOptionalJSONString("  ", "sub_json_noises"); err != nil {
+	if err := validateOptionalJSONString("  ", "sub_json_mux"); err != nil {
 		t.Fatalf("whitespace: %v", err)
 	}
 	if err := validateOptionalJSONString(`{"a":1}`, "sub_json_mux"); err != nil {

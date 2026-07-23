@@ -36,7 +36,7 @@ func (r *panelSettingsResource) Metadata(_ context.Context, _ resource.MetadataR
 
 func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages 3x-ui panel settings (`/panel/api/setting/update`). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults. Set `restart_panel` to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). LDAP and two-factor fields mirror the panel's `AllSetting` model.",
+		MarkdownDescription: "Manages 3x-ui panel settings (`/panel/api/setting/update`). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults. Set `restart_panel` to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). Attributes mirror the panel's `AllSetting` model (Telegram, SMTP, LDAP, subscription, etc.).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:            true,
@@ -90,7 +90,7 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 				Default:             stringdefault.StaticString("127.0.0.1/32,::1/128"),
 			},
 			"panel_proxy": schema.StringAttribute{
-				MarkdownDescription: "Proxy URL used by the panel for outbound requests.",
+				MarkdownDescription: "Proxy URL used by the panel for outbound requests (`panelOutbound`).",
 				Optional:            true,
 				Computed:            true,
 				Default:             stringdefault.StaticString(""),
@@ -122,7 +122,7 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 				Default:             int64default.StaticInt64(0),
 			},
 			"remark_model": schema.StringAttribute{
-				MarkdownDescription: "Remark model pattern for inbounds.",
+				MarkdownDescription: "Remark template for inbounds (`remarkTemplate`).",
 				Optional:            true,
 				Computed:            true,
 				Default:             stringdefault.StaticString(""),
@@ -178,14 +178,14 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 				Computed:            true,
 				Default:             booldefault.StaticBool(false),
 			},
-			"tg_bot_login_notify": schema.BoolAttribute{
-				MarkdownDescription: "Send login notifications via Telegram.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
 			"tg_cpu": schema.Int64Attribute{
 				MarkdownDescription: "CPU usage threshold percentage for Telegram alerts.",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(80),
+			},
+			"tg_memory": schema.Int64Attribute{
+				MarkdownDescription: "Memory usage threshold percentage for Telegram alerts.",
 				Optional:            true,
 				Computed:            true,
 				Default:             int64default.StaticInt64(80),
@@ -195,6 +195,94 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 				Optional:            true,
 				Computed:            true,
 				Default:             stringdefault.StaticString("en-US"),
+			},
+			"tg_enabled_events": schema.StringAttribute{
+				MarkdownDescription: "Comma-separated Telegram notification events (e.g. `login.attempt,cpu.high`).",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString("login.attempt,cpu.high"),
+			},
+
+			// SMTP
+			"smtp_enable": schema.BoolAttribute{
+				MarkdownDescription: "Enable SMTP email notifications.",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
+			"smtp_host": schema.StringAttribute{
+				MarkdownDescription: "SMTP server host.",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+			},
+			"smtp_port": schema.Int64Attribute{
+				MarkdownDescription: "SMTP server port.",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(587),
+			},
+			"smtp_username": schema.StringAttribute{
+				MarkdownDescription: "SMTP username.",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+			},
+			"smtp_password": schema.StringAttribute{
+				MarkdownDescription: "SMTP password.",
+				Optional:            true,
+				Computed:            true,
+				Sensitive:           true,
+				Default:             stringdefault.StaticString(""),
+			},
+			"smtp_from": schema.StringAttribute{
+				MarkdownDescription: "SMTP From address.",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+			},
+			"smtp_from_name": schema.StringAttribute{
+				MarkdownDescription: "SMTP From display name.",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+			},
+			"smtp_to": schema.StringAttribute{
+				MarkdownDescription: "SMTP recipient address(es).",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+			},
+			"smtp_encryption_type": schema.StringAttribute{
+				MarkdownDescription: "SMTP encryption type (`no`, `starttls`, or `tls`).",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString("starttls"),
+			},
+			"smtp_enabled_events": schema.StringAttribute{
+				MarkdownDescription: "Comma-separated SMTP notification events (e.g. `login.attempt,cpu.high`).",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString("login.attempt,cpu.high"),
+			},
+			"smtp_cpu": schema.Int64Attribute{
+				MarkdownDescription: "CPU usage threshold percentage for SMTP alerts.",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(80),
+			},
+			"smtp_memory": schema.Int64Attribute{
+				MarkdownDescription: "Memory usage threshold percentage for SMTP alerts.",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(80),
+			},
+
+			"outbound_down_threshold": schema.Int64Attribute{
+				MarkdownDescription: "Consecutive failed observatory probes before an outbound.down event fires.",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(3),
 			},
 
 			// Security
@@ -239,6 +327,12 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 			},
 			"ldap_use_tls": schema.BoolAttribute{
 				MarkdownDescription: "Use TLS for LDAP connections.",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
+			"ldap_insecure_skip_verify": schema.BoolAttribute{
+				MarkdownDescription: "Skip TLS certificate verification for LDAP connections.",
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(false),
@@ -354,6 +448,36 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 				Computed:            true,
 				Default:             booldefault.StaticBool(false),
 			},
+			"sub_json_auto_detect": schema.BoolAttribute{
+				MarkdownDescription: "Auto-detect clients that should receive JSON subscriptions.",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
+			"sub_json_always_array": schema.BoolAttribute{
+				MarkdownDescription: "Always return JSON subscriptions as an array.",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
+			"sub_json_user_agent_regex": schema.StringAttribute{
+				MarkdownDescription: "User-Agent regex for JSON subscription auto-detect.",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+			},
+			"sub_clash_auto_detect": schema.BoolAttribute{
+				MarkdownDescription: "Auto-detect clients that should receive Clash/Mihomo subscriptions.",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
+			"sub_clash_user_agent_regex": schema.StringAttribute{
+				MarkdownDescription: "User-Agent regex for Clash/Mihomo subscription auto-detect.",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+			},
 			"sub_title": schema.StringAttribute{
 				MarkdownDescription: "Subscription title.",
 				Optional:            true,
@@ -426,18 +550,6 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 				Computed:            true,
 				Default:             booldefault.StaticBool(false),
 			},
-			"sub_show_info": schema.BoolAttribute{
-				MarkdownDescription: "Show client information in subscriptions.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"sub_email_in_remark": schema.BoolAttribute{
-				MarkdownDescription: "Include client email in generated subscription remark/name. Ignored on 3x-ui v3.4+ (use `remark_model` / `remarkTemplate` instead).",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(true),
-			},
 			"sub_uri": schema.StringAttribute{
 				MarkdownDescription: "Subscription server URI.",
 				Optional:            true,
@@ -455,24 +567,6 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 				Optional:            true,
 				Computed:            true,
 				Default:             stringdefault.StaticString(""),
-			},
-			"sub_json_fragment": schema.StringAttribute{
-				MarkdownDescription: "JSON subscription fragment configuration." + panelSettingsJSONAttrNote,
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-				PlanModifiers: []planmodifier.String{
-					jsonSemanticString(),
-				},
-			},
-			"sub_json_noises": schema.StringAttribute{
-				MarkdownDescription: "JSON subscription noise configuration." + panelSettingsJSONAttrNote,
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-				PlanModifiers: []planmodifier.String{
-					jsonSemanticString(),
-				},
 			},
 			"sub_json_mux": schema.StringAttribute{
 				MarkdownDescription: "JSON subscription mux configuration." + panelSettingsJSONAttrNote,
@@ -492,6 +586,15 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 					jsonSemanticString(),
 				},
 			},
+			"sub_json_final_mask": schema.StringAttribute{
+				MarkdownDescription: "JSON subscription FinalMask configuration." + panelSettingsJSONAttrNote,
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+				PlanModifiers: []planmodifier.String{
+					jsonSemanticString(),
+				},
+			},
 			"sub_enable_routing": schema.BoolAttribute{
 				MarkdownDescription: "Enable routing for subscription.",
 				Optional:            true,
@@ -500,6 +603,18 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 			},
 			"sub_routing_rules": schema.StringAttribute{
 				MarkdownDescription: "Subscription global routing rules (plain text, not JSON).",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+			},
+			"sub_incy_enable_routing": schema.BoolAttribute{
+				MarkdownDescription: "Enable Incy routing for subscription.",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
+			"sub_incy_routing_rules": schema.StringAttribute{
+				MarkdownDescription: "Incy routing rules (plain text).",
 				Optional:            true,
 				Computed:            true,
 				Default:             stringdefault.StaticString(""),
@@ -522,6 +637,30 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 				Computed:            true,
 				Default:             stringdefault.StaticString(""),
 			},
+			"sub_clash_enable_routing": schema.BoolAttribute{
+				MarkdownDescription: "Enable Clash/Mihomo subscription routing rules.",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
+			"sub_clash_rules": schema.StringAttribute{
+				MarkdownDescription: "Clash/Mihomo subscription routing rules (plain text).",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+			},
+			"sub_theme_dir": schema.StringAttribute{
+				MarkdownDescription: "Directory for custom subscription theme assets.",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+			},
+			"sub_hide_settings": schema.BoolAttribute{
+				MarkdownDescription: "Hide settings section in subscription pages.",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
 			"restart_xray_on_client_disable": schema.BoolAttribute{
 				MarkdownDescription: "Restart Xray when clients are auto-disabled by expiry/traffic limits.",
 				Optional:            true,
@@ -539,6 +678,12 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 				Optional:            true,
 				Computed:            true,
 				Default:             stringdefault.StaticString(""),
+			},
+			"warp_update_interval": schema.Int64Attribute{
+				MarkdownDescription: "WARP account update interval in hours (0 = disabled).",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(0),
 			},
 
 			// Restart
@@ -586,45 +731,68 @@ type panelSettingsModel struct {
 	Datepicker  types.String `tfsdk:"datepicker"`
 
 	// Telegram
-	TgBotEnable      types.Bool   `tfsdk:"tg_bot_enable"`
-	TgBotToken       types.String `tfsdk:"tg_bot_token"`
-	TgBotProxy       types.String `tfsdk:"tg_bot_proxy"`
-	TgBotAPIServer   types.String `tfsdk:"tg_bot_api_server"`
-	TgBotChatID      types.String `tfsdk:"tg_bot_chat_id"`
-	TgRunTime        types.String `tfsdk:"tg_run_time"`
-	TgBotBackup      types.Bool   `tfsdk:"tg_bot_backup"`
-	TgBotLoginNotify types.Bool   `tfsdk:"tg_bot_login_notify"`
-	TgCPU            types.Int64  `tfsdk:"tg_cpu"`
-	TgLang           types.String `tfsdk:"tg_lang"`
+	TgBotEnable     types.Bool   `tfsdk:"tg_bot_enable"`
+	TgBotToken      types.String `tfsdk:"tg_bot_token"`
+	TgBotProxy      types.String `tfsdk:"tg_bot_proxy"`
+	TgBotAPIServer  types.String `tfsdk:"tg_bot_api_server"`
+	TgBotChatID     types.String `tfsdk:"tg_bot_chat_id"`
+	TgRunTime       types.String `tfsdk:"tg_run_time"`
+	TgBotBackup     types.Bool   `tfsdk:"tg_bot_backup"`
+	TgCPU           types.Int64  `tfsdk:"tg_cpu"`
+	TgMemory        types.Int64  `tfsdk:"tg_memory"`
+	TgLang          types.String `tfsdk:"tg_lang"`
+	TgEnabledEvents types.String `tfsdk:"tg_enabled_events"`
+
+	// SMTP
+	SmtpEnable         types.Bool   `tfsdk:"smtp_enable"`
+	SmtpHost           types.String `tfsdk:"smtp_host"`
+	SmtpPort           types.Int64  `tfsdk:"smtp_port"`
+	SmtpUsername       types.String `tfsdk:"smtp_username"`
+	SmtpPassword       types.String `tfsdk:"smtp_password"`
+	SmtpFrom           types.String `tfsdk:"smtp_from"`
+	SmtpFromName       types.String `tfsdk:"smtp_from_name"`
+	SmtpTo             types.String `tfsdk:"smtp_to"`
+	SmtpEncryptionType types.String `tfsdk:"smtp_encryption_type"`
+	SmtpEnabledEvents  types.String `tfsdk:"smtp_enabled_events"`
+	SmtpCPU            types.Int64  `tfsdk:"smtp_cpu"`
+	SmtpMemory         types.Int64  `tfsdk:"smtp_memory"`
+
+	OutboundDownThreshold types.Int64 `tfsdk:"outbound_down_threshold"`
 
 	// Security
-	TimeLocation          types.String `tfsdk:"time_location"`
-	TwoFactorEnable       types.Bool   `tfsdk:"two_factor_enable"`
-	TwoFactorToken        types.String `tfsdk:"two_factor_token"`
-	LdapEnable            types.Bool   `tfsdk:"ldap_enable"`
-	LdapHost              types.String `tfsdk:"ldap_host"`
-	LdapPort              types.Int64  `tfsdk:"ldap_port"`
-	LdapUseTLS            types.Bool   `tfsdk:"ldap_use_tls"`
-	LdapBindDN            types.String `tfsdk:"ldap_bind_dn"`
-	LdapPassword          types.String `tfsdk:"ldap_password"`
-	LdapBaseDN            types.String `tfsdk:"ldap_base_dn"`
-	LdapUserFilter        types.String `tfsdk:"ldap_user_filter"`
-	LdapUserAttr          types.String `tfsdk:"ldap_user_attr"`
-	LdapVlessField        types.String `tfsdk:"ldap_vless_field"`
-	LdapSyncCron          types.String `tfsdk:"ldap_sync_cron"`
-	LdapFlagField         types.String `tfsdk:"ldap_flag_field"`
-	LdapTruthyValues      types.String `tfsdk:"ldap_truthy_values"`
-	LdapInvertFlag        types.Bool   `tfsdk:"ldap_invert_flag"`
-	LdapInboundTags       types.String `tfsdk:"ldap_inbound_tags"`
-	LdapAutoCreate        types.Bool   `tfsdk:"ldap_auto_create"`
-	LdapAutoDelete        types.Bool   `tfsdk:"ldap_auto_delete"`
-	LdapDefaultTotalGB    types.Int64  `tfsdk:"ldap_default_total_gb"`
-	LdapDefaultExpiryDays types.Int64  `tfsdk:"ldap_default_expiry_days"`
-	LdapDefaultLimitIP    types.Int64  `tfsdk:"ldap_default_limit_ip"`
+	TimeLocation           types.String `tfsdk:"time_location"`
+	TwoFactorEnable        types.Bool   `tfsdk:"two_factor_enable"`
+	TwoFactorToken         types.String `tfsdk:"two_factor_token"`
+	LdapEnable             types.Bool   `tfsdk:"ldap_enable"`
+	LdapHost               types.String `tfsdk:"ldap_host"`
+	LdapPort               types.Int64  `tfsdk:"ldap_port"`
+	LdapUseTLS             types.Bool   `tfsdk:"ldap_use_tls"`
+	LdapInsecureSkipVerify types.Bool   `tfsdk:"ldap_insecure_skip_verify"`
+	LdapBindDN             types.String `tfsdk:"ldap_bind_dn"`
+	LdapPassword           types.String `tfsdk:"ldap_password"`
+	LdapBaseDN             types.String `tfsdk:"ldap_base_dn"`
+	LdapUserFilter         types.String `tfsdk:"ldap_user_filter"`
+	LdapUserAttr           types.String `tfsdk:"ldap_user_attr"`
+	LdapVlessField         types.String `tfsdk:"ldap_vless_field"`
+	LdapSyncCron           types.String `tfsdk:"ldap_sync_cron"`
+	LdapFlagField          types.String `tfsdk:"ldap_flag_field"`
+	LdapTruthyValues       types.String `tfsdk:"ldap_truthy_values"`
+	LdapInvertFlag         types.Bool   `tfsdk:"ldap_invert_flag"`
+	LdapInboundTags        types.String `tfsdk:"ldap_inbound_tags"`
+	LdapAutoCreate         types.Bool   `tfsdk:"ldap_auto_create"`
+	LdapAutoDelete         types.Bool   `tfsdk:"ldap_auto_delete"`
+	LdapDefaultTotalGB     types.Int64  `tfsdk:"ldap_default_total_gb"`
+	LdapDefaultExpiryDays  types.Int64  `tfsdk:"ldap_default_expiry_days"`
+	LdapDefaultLimitIP     types.Int64  `tfsdk:"ldap_default_limit_ip"`
 
 	// Subscription
 	SubEnable                   types.Bool   `tfsdk:"sub_enable"`
 	SubJSONEnable               types.Bool   `tfsdk:"sub_json_enable"`
+	SubJSONAutoDetect           types.Bool   `tfsdk:"sub_json_auto_detect"`
+	SubJSONAlwaysArray          types.Bool   `tfsdk:"sub_json_always_array"`
+	SubJSONUserAgentRegex       types.String `tfsdk:"sub_json_user_agent_regex"`
+	SubClashAutoDetect          types.Bool   `tfsdk:"sub_clash_auto_detect"`
+	SubClashUserAgentRegex      types.String `tfsdk:"sub_clash_user_agent_regex"`
 	SubTitle                    types.String `tfsdk:"sub_title"`
 	SubSupportURL               types.String `tfsdk:"sub_support_url"`
 	SubProfileURL               types.String `tfsdk:"sub_profile_url"`
@@ -637,30 +805,34 @@ type panelSettingsModel struct {
 	SubKeyFile                  types.String `tfsdk:"sub_key_file"`
 	SubUpdates                  types.Int64  `tfsdk:"sub_updates"`
 	SubEncrypt                  types.Bool   `tfsdk:"sub_encrypt"`
-	SubShowInfo                 types.Bool   `tfsdk:"sub_show_info"`
-	SubEmailInRemark            types.Bool   `tfsdk:"sub_email_in_remark"`
 	SubURI                      types.String `tfsdk:"sub_uri"`
 	SubJSONPath                 types.String `tfsdk:"sub_json_path"`
 	SubJSONURI                  types.String `tfsdk:"sub_json_uri"`
-	SubJSONFragment             types.String `tfsdk:"sub_json_fragment"`
-	SubJSONNoises               types.String `tfsdk:"sub_json_noises"`
 	SubJSONMux                  types.String `tfsdk:"sub_json_mux"`
 	SubJSONRules                types.String `tfsdk:"sub_json_rules"`
+	SubJSONFinalMask            types.String `tfsdk:"sub_json_final_mask"`
 	SubEnableRouting            types.Bool   `tfsdk:"sub_enable_routing"`
 	SubRoutingRules             types.String `tfsdk:"sub_routing_rules"`
+	SubIncyEnableRouting        types.Bool   `tfsdk:"sub_incy_enable_routing"`
+	SubIncyRoutingRules         types.String `tfsdk:"sub_incy_routing_rules"`
 	SubClashEnable              types.Bool   `tfsdk:"sub_clash_enable"`
 	SubClashPath                types.String `tfsdk:"sub_clash_path"`
 	SubClashURI                 types.String `tfsdk:"sub_clash_uri"`
+	SubClashEnableRouting       types.Bool   `tfsdk:"sub_clash_enable_routing"`
+	SubClashRules               types.String `tfsdk:"sub_clash_rules"`
+	SubThemeDir                 types.String `tfsdk:"sub_theme_dir"`
+	SubHideSettings             types.Bool   `tfsdk:"sub_hide_settings"`
 	RestartXrayOnClientDisable  types.Bool   `tfsdk:"restart_xray_on_client_disable"`
 	ExternalTrafficInformEnable types.Bool   `tfsdk:"external_traffic_inform_enable"`
 	ExternalTrafficInformURI    types.String `tfsdk:"external_traffic_inform_uri"`
+	WarpUpdateInterval          types.Int64  `tfsdk:"warp_update_interval"`
 
 	// Restart
 	RestartPanel types.Bool `tfsdk:"restart_panel"`
 }
 
 func (r *panelSettingsResource) modelToPayload(m *panelSettingsModel) map[string]any {
-	p := map[string]any{
+	return map[string]any{
 		"webListen":                   m.WebListen.ValueString(),
 		"webDomain":                   m.WebDomain.ValueString(),
 		"webPort":                     m.WebPort.ValueInt64(),
@@ -682,9 +854,23 @@ func (r *panelSettingsResource) modelToPayload(m *panelSettingsModel) map[string
 		"tgBotChatId":                 m.TgBotChatID.ValueString(),
 		"tgRunTime":                   m.TgRunTime.ValueString(),
 		"tgBotBackup":                 m.TgBotBackup.ValueBool(),
-		"tgBotLoginNotify":            m.TgBotLoginNotify.ValueBool(),
 		"tgCpu":                       m.TgCPU.ValueInt64(),
+		"tgMemory":                    m.TgMemory.ValueInt64(),
 		"tgLang":                      m.TgLang.ValueString(),
+		"tgEnabledEvents":             m.TgEnabledEvents.ValueString(),
+		"smtpEnable":                  m.SmtpEnable.ValueBool(),
+		"smtpHost":                    m.SmtpHost.ValueString(),
+		"smtpPort":                    m.SmtpPort.ValueInt64(),
+		"smtpUsername":                m.SmtpUsername.ValueString(),
+		"smtpPassword":                m.SmtpPassword.ValueString(),
+		"smtpFrom":                    m.SmtpFrom.ValueString(),
+		"smtpFromName":                m.SmtpFromName.ValueString(),
+		"smtpTo":                      m.SmtpTo.ValueString(),
+		"smtpEncryptionType":          m.SmtpEncryptionType.ValueString(),
+		"smtpEnabledEvents":           m.SmtpEnabledEvents.ValueString(),
+		"smtpCpu":                     m.SmtpCPU.ValueInt64(),
+		"smtpMemory":                  m.SmtpMemory.ValueInt64(),
+		"outboundDownThreshold":       m.OutboundDownThreshold.ValueInt64(),
 		"timeLocation":                m.TimeLocation.ValueString(),
 		"twoFactorEnable":             m.TwoFactorEnable.ValueBool(),
 		"twoFactorToken":              m.TwoFactorToken.ValueString(),
@@ -692,6 +878,7 @@ func (r *panelSettingsResource) modelToPayload(m *panelSettingsModel) map[string
 		"ldapHost":                    m.LdapHost.ValueString(),
 		"ldapPort":                    m.LdapPort.ValueInt64(),
 		"ldapUseTLS":                  m.LdapUseTLS.ValueBool(),
+		"ldapInsecureSkipVerify":      m.LdapInsecureSkipVerify.ValueBool(),
 		"ldapBindDN":                  m.LdapBindDN.ValueString(),
 		"ldapPassword":                m.LdapPassword.ValueString(),
 		"ldapBaseDN":                  m.LdapBaseDN.ValueString(),
@@ -710,6 +897,11 @@ func (r *panelSettingsResource) modelToPayload(m *panelSettingsModel) map[string
 		"ldapDefaultLimitIP":          m.LdapDefaultLimitIP.ValueInt64(),
 		"subEnable":                   m.SubEnable.ValueBool(),
 		"subJsonEnable":               m.SubJSONEnable.ValueBool(),
+		"subJsonAutoDetect":           m.SubJSONAutoDetect.ValueBool(),
+		"subJsonAlwaysArray":          m.SubJSONAlwaysArray.ValueBool(),
+		"subJsonUserAgentRegex":       m.SubJSONUserAgentRegex.ValueString(),
+		"subClashAutoDetect":          m.SubClashAutoDetect.ValueBool(),
+		"subClashUserAgentRegex":      m.SubClashUserAgentRegex.ValueString(),
 		"subTitle":                    m.SubTitle.ValueString(),
 		"subSupportUrl":               m.SubSupportURL.ValueString(),
 		"subProfileUrl":               m.SubProfileURL.ValueString(),
@@ -722,25 +914,46 @@ func (r *panelSettingsResource) modelToPayload(m *panelSettingsModel) map[string
 		"subKeyFile":                  m.SubKeyFile.ValueString(),
 		"subUpdates":                  m.SubUpdates.ValueInt64(),
 		"subEncrypt":                  m.SubEncrypt.ValueBool(),
-		"subShowInfo":                 m.SubShowInfo.ValueBool(),
-		"subEmailInRemark":            m.SubEmailInRemark.ValueBool(),
 		"subURI":                      m.SubURI.ValueString(),
 		"subJsonPath":                 m.SubJSONPath.ValueString(),
 		"subJsonURI":                  m.SubJSONURI.ValueString(),
-		"subJsonFragment":             panelJSONWireValue(m.SubJSONFragment.ValueString()),
-		"subJsonNoises":               panelJSONWireValue(m.SubJSONNoises.ValueString()),
 		"subJsonMux":                  panelJSONWireValue(m.SubJSONMux.ValueString()),
 		"subJsonRules":                panelJSONWireValue(m.SubJSONRules.ValueString()),
+		"subJsonFinalMask":            panelJSONWireValue(m.SubJSONFinalMask.ValueString()),
 		"subEnableRouting":            m.SubEnableRouting.ValueBool(),
 		"subRoutingRules":             m.SubRoutingRules.ValueString(),
+		"subIncyEnableRouting":        m.SubIncyEnableRouting.ValueBool(),
+		"subIncyRoutingRules":         m.SubIncyRoutingRules.ValueString(),
 		"subClashEnable":              m.SubClashEnable.ValueBool(),
 		"subClashPath":                m.SubClashPath.ValueString(),
 		"subClashURI":                 m.SubClashURI.ValueString(),
+		"subClashEnableRouting":       m.SubClashEnableRouting.ValueBool(),
+		"subClashRules":               m.SubClashRules.ValueString(),
+		"subThemeDir":                 m.SubThemeDir.ValueString(),
+		"subHideSettings":             m.SubHideSettings.ValueBool(),
 		"restartXrayOnClientDisable":  m.RestartXrayOnClientDisable.ValueBool(),
 		"externalTrafficInformEnable": m.ExternalTrafficInformEnable.ValueBool(),
 		"externalTrafficInformURI":    m.ExternalTrafficInformURI.ValueString(),
+		"warpUpdateInterval":          m.WarpUpdateInterval.ValueInt64(),
 	}
-	return p
+}
+
+// panelSettingsOptionalKeys were added after 3x-ui v3.5.0. Older panels omit
+// them from /setting/all; keep prior Terraform state instead of zeroing.
+var panelSettingsOptionalKeys = map[string]struct{}{
+	"outboundDownThreshold":  {},
+	"smtpFrom":               {},
+	"smtpFromName":           {},
+	"subJsonAutoDetect":      {},
+	"subJsonAlwaysArray":     {},
+	"subJsonUserAgentRegex":  {},
+	"subClashAutoDetect":     {},
+	"subClashUserAgentRegex": {},
+}
+
+func panelSettingsHasKey(m map[string]any, key string) bool {
+	_, ok := m[key]
+	return ok
 }
 
 func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSettingsModel) {
@@ -765,11 +978,23 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.TgBotChatID = types.StringValue(stringFromMap(m, "tgBotChatId"))
 	state.TgRunTime = types.StringValue(stringFromMap(m, "tgRunTime"))
 	state.TgBotBackup = types.BoolValue(boolFromMap(m, "tgBotBackup"))
-	if _, ok := m["tgBotLoginNotify"]; ok {
-		state.TgBotLoginNotify = types.BoolValue(boolFromMap(m, "tgBotLoginNotify"))
-	}
 	state.TgCPU = types.Int64Value(int64FromMap(m, "tgCpu"))
+	state.TgMemory = types.Int64Value(int64FromMap(m, "tgMemory"))
 	state.TgLang = types.StringValue(stringFromMap(m, "tgLang"))
+	state.TgEnabledEvents = types.StringValue(stringFromMap(m, "tgEnabledEvents"))
+	state.SmtpEnable = types.BoolValue(boolFromMap(m, "smtpEnable"))
+	state.SmtpHost = types.StringValue(stringFromMap(m, "smtpHost"))
+	state.SmtpPort = types.Int64Value(int64FromMap(m, "smtpPort"))
+	state.SmtpUsername = types.StringValue(stringFromMap(m, "smtpUsername"))
+	state.SmtpPassword = types.StringValue(stringFromMap(m, "smtpPassword"))
+	assignOptionalString(m, "smtpFrom", &state.SmtpFrom, "")
+	assignOptionalString(m, "smtpFromName", &state.SmtpFromName, "")
+	state.SmtpTo = types.StringValue(stringFromMap(m, "smtpTo"))
+	state.SmtpEncryptionType = types.StringValue(stringFromMap(m, "smtpEncryptionType"))
+	state.SmtpEnabledEvents = types.StringValue(stringFromMap(m, "smtpEnabledEvents"))
+	state.SmtpCPU = types.Int64Value(int64FromMap(m, "smtpCpu"))
+	state.SmtpMemory = types.Int64Value(int64FromMap(m, "smtpMemory"))
+	assignOptionalInt64(m, "outboundDownThreshold", &state.OutboundDownThreshold, 3)
 	state.TimeLocation = types.StringValue(stringFromMap(m, "timeLocation"))
 	state.TwoFactorEnable = types.BoolValue(boolFromMap(m, "twoFactorEnable"))
 	state.TwoFactorToken = types.StringValue(stringFromMap(m, "twoFactorToken"))
@@ -777,6 +1002,7 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.LdapHost = types.StringValue(stringFromMap(m, "ldapHost"))
 	state.LdapPort = types.Int64Value(int64FromMap(m, "ldapPort"))
 	state.LdapUseTLS = types.BoolValue(boolFromMap(m, "ldapUseTLS"))
+	state.LdapInsecureSkipVerify = types.BoolValue(boolFromMap(m, "ldapInsecureSkipVerify"))
 	state.LdapBindDN = types.StringValue(stringFromMap(m, "ldapBindDN"))
 	state.LdapPassword = types.StringValue(stringFromMap(m, "ldapPassword"))
 	state.LdapBaseDN = types.StringValue(stringFromMap(m, "ldapBaseDN"))
@@ -795,6 +1021,11 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.LdapDefaultLimitIP = types.Int64Value(int64FromMap(m, "ldapDefaultLimitIP"))
 	state.SubEnable = types.BoolValue(boolFromMap(m, "subEnable"))
 	state.SubJSONEnable = types.BoolValue(boolFromMap(m, "subJsonEnable"))
+	assignOptionalBool(m, "subJsonAutoDetect", &state.SubJSONAutoDetect, false)
+	assignOptionalBool(m, "subJsonAlwaysArray", &state.SubJSONAlwaysArray, false)
+	assignOptionalString(m, "subJsonUserAgentRegex", &state.SubJSONUserAgentRegex, "")
+	assignOptionalBool(m, "subClashAutoDetect", &state.SubClashAutoDetect, false)
+	assignOptionalString(m, "subClashUserAgentRegex", &state.SubClashUserAgentRegex, "")
 	state.SubTitle = types.StringValue(stringFromMap(m, "subTitle"))
 	state.SubSupportURL = types.StringValue(stringFromMap(m, "subSupportUrl"))
 	state.SubProfileURL = types.StringValue(stringFromMap(m, "subProfileUrl"))
@@ -807,41 +1038,64 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.SubKeyFile = types.StringValue(stringFromMap(m, "subKeyFile"))
 	state.SubUpdates = types.Int64Value(int64FromMap(m, "subUpdates"))
 	state.SubEncrypt = types.BoolValue(boolFromMap(m, "subEncrypt"))
-	// subShowInfo / subEmailInRemark / subJsonFragment / subJsonNoises were
-	// removed from AllSetting in 3x-ui v3.4+; keep prior state when absent.
-	if _, ok := m["subShowInfo"]; ok {
-		state.SubShowInfo = types.BoolValue(boolFromMap(m, "subShowInfo"))
-	}
-	if _, ok := m["subEmailInRemark"]; ok {
-		state.SubEmailInRemark = types.BoolValue(boolFromMap(m, "subEmailInRemark"))
-	}
 	state.SubURI = types.StringValue(stringFromMap(m, "subURI"))
 	state.SubJSONPath = types.StringValue(stringFromMap(m, "subJsonPath"))
 	state.SubJSONURI = types.StringValue(stringFromMap(m, "subJsonURI"))
-	if _, ok := m["subJsonFragment"]; ok {
-		state.SubJSONFragment = types.StringValue(panelJSONStateValue(stringFromMap(m, "subJsonFragment")))
-	}
-	if _, ok := m["subJsonNoises"]; ok {
-		state.SubJSONNoises = types.StringValue(panelJSONStateValue(stringFromMap(m, "subJsonNoises")))
-	}
 	state.SubJSONMux = types.StringValue(panelJSONStateValue(stringFromMap(m, "subJsonMux")))
 	state.SubJSONRules = types.StringValue(panelJSONStateValue(stringFromMap(m, "subJsonRules")))
+	state.SubJSONFinalMask = types.StringValue(panelJSONStateValue(stringFromMap(m, "subJsonFinalMask")))
 	state.SubEnableRouting = types.BoolValue(boolFromMap(m, "subEnableRouting"))
 	state.SubRoutingRules = types.StringValue(stringFromMap(m, "subRoutingRules"))
+	state.SubIncyEnableRouting = types.BoolValue(boolFromMap(m, "subIncyEnableRouting"))
+	state.SubIncyRoutingRules = types.StringValue(stringFromMap(m, "subIncyRoutingRules"))
 	state.SubClashEnable = types.BoolValue(boolFromMap(m, "subClashEnable"))
 	state.SubClashPath = types.StringValue(stringFromMap(m, "subClashPath"))
 	state.SubClashURI = types.StringValue(stringFromMap(m, "subClashURI"))
+	state.SubClashEnableRouting = types.BoolValue(boolFromMap(m, "subClashEnableRouting"))
+	state.SubClashRules = types.StringValue(stringFromMap(m, "subClashRules"))
+	state.SubThemeDir = types.StringValue(stringFromMap(m, "subThemeDir"))
+	state.SubHideSettings = types.BoolValue(boolFromMap(m, "subHideSettings"))
 	state.RestartXrayOnClientDisable = types.BoolValue(boolFromMap(m, "restartXrayOnClientDisable"))
 	state.ExternalTrafficInformEnable = types.BoolValue(boolFromMap(m, "externalTrafficInformEnable"))
 	state.ExternalTrafficInformURI = types.StringValue(stringFromMap(m, "externalTrafficInformURI"))
+	state.WarpUpdateInterval = types.Int64Value(int64FromMap(m, "warpUpdateInterval"))
+}
+
+func assignOptionalString(m map[string]any, key string, dest *types.String, absentDefault string) {
+	if _, optional := panelSettingsOptionalKeys[key]; optional && !panelSettingsHasKey(m, key) {
+		if dest.IsNull() || dest.IsUnknown() {
+			*dest = types.StringValue(absentDefault)
+		}
+		return
+	}
+	*dest = types.StringValue(stringFromMap(m, key))
+}
+
+func assignOptionalInt64(m map[string]any, key string, dest *types.Int64, absentDefault int64) {
+	if _, optional := panelSettingsOptionalKeys[key]; optional && !panelSettingsHasKey(m, key) {
+		if dest.IsNull() || dest.IsUnknown() {
+			*dest = types.Int64Value(absentDefault)
+		}
+		return
+	}
+	*dest = types.Int64Value(int64FromMap(m, key))
+}
+
+func assignOptionalBool(m map[string]any, key string, dest *types.Bool, absentDefault bool) {
+	if _, optional := panelSettingsOptionalKeys[key]; optional && !panelSettingsHasKey(m, key) {
+		if dest.IsNull() || dest.IsUnknown() {
+			*dest = types.BoolValue(absentDefault)
+		}
+		return
+	}
+	*dest = types.BoolValue(boolFromMap(m, key))
 }
 
 func validatePanelSettingsJSON(m *panelSettingsModel) error {
 	for name, val := range map[string]types.String{
-		"sub_json_fragment": m.SubJSONFragment,
-		"sub_json_noises":   m.SubJSONNoises,
-		"sub_json_mux":      m.SubJSONMux,
-		"sub_json_rules":    m.SubJSONRules,
+		"sub_json_mux":        m.SubJSONMux,
+		"sub_json_rules":      m.SubJSONRules,
+		"sub_json_final_mask": m.SubJSONFinalMask,
 	} {
 		if err := validateOptionalJSONString(val.ValueString(), name); err != nil {
 			return err
@@ -948,5 +1202,5 @@ func (r *panelSettingsResource) ImportState(ctx context.Context, _ resource.Impo
 	state.ID = types.StringValue("panel-settings")
 	state.RestartPanel = types.BoolValue(false)
 	r.apiToModel(m, &state)
-	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }

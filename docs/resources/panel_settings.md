@@ -3,12 +3,12 @@
 page_title: "xui_panel_settings Resource - xui"
 subcategory: ""
 description: |-
-  Manages 3x-ui panel settings (/panel/api/setting/update). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults. Set restart_panel to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). LDAP and two-factor fields mirror the panel's AllSetting model.
+  Manages 3x-ui panel settings (/panel/api/setting/update). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults. Set restart_panel to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). Attributes mirror the panel's AllSetting model (Telegram, SMTP, LDAP, subscription, etc.).
 ---
 
 # xui_panel_settings (Resource)
 
-Manages 3x-ui panel settings (`/panel/api/setting/update`). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults. Set `restart_panel` to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). LDAP and two-factor fields mirror the panel's `AllSetting` model.
+Manages 3x-ui panel settings (`/panel/api/setting/update`). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults. Set `restart_panel` to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). Attributes mirror the panel's `AllSetting` model (Telegram, SMTP, LDAP, subscription, etc.).
 
 ## Example Usage
 
@@ -22,14 +22,22 @@ resource "xui_panel_settings" "this" {
   session_max_age = 120
   time_location   = "Europe/Tallinn"
 
-  tg_bot_enable       = true
-  tg_bot_token        = var.tg_bot_token
-  tg_bot_chat_id      = var.tg_chat_id
-  tg_bot_login_notify = true
+  tg_bot_enable  = true
+  tg_bot_token   = var.tg_bot_token
+  tg_bot_chat_id = var.tg_chat_id
+  tg_memory      = 85
 
-  sub_enable = true
-  sub_port   = 2096
-  sub_path   = "/my-sub/"
+  smtp_enable = true
+  smtp_host   = "smtp.example.com"
+  smtp_port   = 587
+  smtp_from   = "panel@example.com"
+  smtp_to     = "admin@example.com"
+
+  sub_enable               = true
+  sub_port                 = 2096
+  sub_path                 = "/my-sub/"
+  sub_json_auto_detect     = true
+  sub_clash_enable_routing = true
 
   restart_panel = true
 }
@@ -55,6 +63,7 @@ resource "xui_panel_settings" "this" {
 - `ldap_flag_field` (String) LDAP attribute used as a generic flag.
 - `ldap_host` (String) LDAP server host.
 - `ldap_inbound_tags` (String) Inbound tags for LDAP-provisioned users.
+- `ldap_insecure_skip_verify` (Boolean) Skip TLS certificate verification for LDAP connections.
 - `ldap_invert_flag` (Boolean) Invert LDAP flag interpretation.
 - `ldap_password` (String, Sensitive) LDAP bind password.
 - `ldap_port` (Number) LDAP server port.
@@ -64,37 +73,58 @@ resource "xui_panel_settings" "this" {
 - `ldap_user_attr` (String) LDAP attribute for username (e.g. `mail` or `uid`).
 - `ldap_user_filter` (String) LDAP user search filter.
 - `ldap_vless_field` (String) LDAP attribute mapped to VLESS identity.
+- `outbound_down_threshold` (Number) Consecutive failed observatory probes before an outbound.down event fires.
 - `page_size` (Number) Number of items per page in lists.
-- `panel_proxy` (String) Proxy URL used by the panel for outbound requests.
-- `remark_model` (String) Remark model pattern for inbounds.
+- `panel_proxy` (String) Proxy URL used by the panel for outbound requests (`panelOutbound`).
+- `remark_model` (String) Remark template for inbounds (`remarkTemplate`).
 - `restart_panel` (Boolean) If true, restart the panel after applying settings changes. Required for web listen/port/cert changes to take effect.
 - `restart_xray_on_client_disable` (Boolean) Restart Xray when clients are auto-disabled by expiry/traffic limits.
 - `session_max_age` (Number) Session maximum age in minutes.
+- `smtp_cpu` (Number) CPU usage threshold percentage for SMTP alerts.
+- `smtp_enable` (Boolean) Enable SMTP email notifications.
+- `smtp_enabled_events` (String) Comma-separated SMTP notification events (e.g. `login.attempt,cpu.high`).
+- `smtp_encryption_type` (String) SMTP encryption type (`no`, `starttls`, or `tls`).
+- `smtp_from` (String) SMTP From address.
+- `smtp_from_name` (String) SMTP From display name.
+- `smtp_host` (String) SMTP server host.
+- `smtp_memory` (Number) Memory usage threshold percentage for SMTP alerts.
+- `smtp_password` (String, Sensitive) SMTP password.
+- `smtp_port` (Number) SMTP server port.
+- `smtp_to` (String) SMTP recipient address(es).
+- `smtp_username` (String) SMTP username.
 - `sub_announce` (String) Subscription announcement.
 - `sub_cert_file` (String) SSL certificate file for subscription server.
+- `sub_clash_auto_detect` (Boolean) Auto-detect clients that should receive Clash/Mihomo subscriptions.
 - `sub_clash_enable` (Boolean) Enable Clash/Mihomo subscription endpoint.
+- `sub_clash_enable_routing` (Boolean) Enable Clash/Mihomo subscription routing rules.
 - `sub_clash_path` (String) Path for Clash/Mihomo subscription endpoint.
+- `sub_clash_rules` (String) Clash/Mihomo subscription routing rules (plain text).
 - `sub_clash_uri` (String) Clash/Mihomo subscription URI.
+- `sub_clash_user_agent_regex` (String) User-Agent regex for Clash/Mihomo subscription auto-detect.
 - `sub_domain` (String) Domain for subscription server validation.
-- `sub_email_in_remark` (Boolean) Include client email in generated subscription remark/name. Ignored on 3x-ui v3.4+ (use `remark_model` / `remarkTemplate` instead).
 - `sub_enable` (Boolean) Enable subscription server.
 - `sub_enable_routing` (Boolean) Enable routing for subscription.
 - `sub_encrypt` (Boolean) Encrypt subscription responses.
+- `sub_hide_settings` (Boolean) Hide settings section in subscription pages.
+- `sub_incy_enable_routing` (Boolean) Enable Incy routing for subscription.
+- `sub_incy_routing_rules` (String) Incy routing rules (plain text).
+- `sub_json_always_array` (Boolean) Always return JSON subscriptions as an array.
+- `sub_json_auto_detect` (Boolean) Auto-detect clients that should receive JSON subscriptions.
 - `sub_json_enable` (Boolean) Enable JSON subscription endpoint.
-- `sub_json_fragment` (String) JSON subscription fragment configuration. Accepts empty/null (unset). Semantic JSON equality avoids whitespace and key-order drift.
+- `sub_json_final_mask` (String) JSON subscription FinalMask configuration. Accepts empty/null (unset). Semantic JSON equality avoids whitespace and key-order drift.
 - `sub_json_mux` (String) JSON subscription mux configuration. Accepts empty/null (unset). Semantic JSON equality avoids whitespace and key-order drift.
-- `sub_json_noises` (String) JSON subscription noise configuration. Accepts empty/null (unset). Semantic JSON equality avoids whitespace and key-order drift.
 - `sub_json_path` (String) Path for JSON subscription endpoint.
 - `sub_json_rules` (String) JSON subscription routing rules. Accepts empty/null (unset). Semantic JSON equality avoids whitespace and key-order drift.
 - `sub_json_uri` (String) JSON subscription server URI.
+- `sub_json_user_agent_regex` (String) User-Agent regex for JSON subscription auto-detect.
 - `sub_key_file` (String) SSL private key file for subscription server.
 - `sub_listen` (String) Subscription server listen IP.
 - `sub_path` (String) Base path for subscription URLs.
 - `sub_port` (Number) Subscription server port.
 - `sub_profile_url` (String) Subscription profile URL.
 - `sub_routing_rules` (String) Subscription global routing rules (plain text, not JSON).
-- `sub_show_info` (Boolean) Show client information in subscriptions.
 - `sub_support_url` (String) Subscription support URL.
+- `sub_theme_dir` (String) Directory for custom subscription theme assets.
 - `sub_title` (String) Subscription title.
 - `sub_updates` (Number) Subscription update interval in minutes.
 - `sub_uri` (String) Subscription server URI.
@@ -102,17 +132,19 @@ resource "xui_panel_settings" "this" {
 - `tg_bot_backup` (Boolean) Enable database backup via Telegram.
 - `tg_bot_chat_id` (String) Telegram chat ID for notifications.
 - `tg_bot_enable` (Boolean) Enable Telegram bot notifications.
-- `tg_bot_login_notify` (Boolean) Send login notifications via Telegram.
 - `tg_bot_proxy` (String) Proxy URL for Telegram bot.
 - `tg_bot_token` (String, Sensitive) Telegram bot token.
 - `tg_cpu` (Number) CPU usage threshold percentage for Telegram alerts.
+- `tg_enabled_events` (String) Comma-separated Telegram notification events (e.g. `login.attempt,cpu.high`).
 - `tg_lang` (String) Telegram bot language.
+- `tg_memory` (Number) Memory usage threshold percentage for Telegram alerts.
 - `tg_run_time` (String) Cron schedule for Telegram notifications (e.g. `@daily`).
 - `time_location` (String) Time zone location (e.g. `UTC`, `Asia/Tehran`).
 - `traffic_diff` (Number) Traffic warning threshold percentage.
 - `trusted_proxy_cidrs` (String) Trusted reverse-proxy CIDRs used for forwarded headers.
 - `two_factor_enable` (Boolean) Enable two-factor authentication for the panel.
 - `two_factor_token` (String, Sensitive) Two-factor authentication secret / token.
+- `warp_update_interval` (Number) WARP account update interval in hours (0 = disabled).
 - `web_base_path` (String) Base path for panel URLs (e.g. `/<uuid>/`).
 - `web_cert_file` (String) Path to SSL certificate file for the web panel.
 - `web_domain` (String) Web panel domain for validation.

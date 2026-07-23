@@ -19,8 +19,9 @@ package provider
 //     Used for: xui_xray_template.json, xui_inbound.stream_settings,
 //     xui_inbound.sniffing, and the matching data-source attributes.
 //
-//     xui_panel_settings sub_json_* fields use plain strings plus
-//     jsonSemanticString plan modifiers instead (optional null/empty config).
+//     xui_panel_settings sub_json_mux / sub_json_rules / sub_json_final_mask
+//     use plain strings plus jsonSemanticString plan modifiers instead
+//     (optional null/empty config).
 //
 //  2. canonicalizeInboundSettings (this file)
 //
