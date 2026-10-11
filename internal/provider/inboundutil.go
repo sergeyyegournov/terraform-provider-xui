@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -45,6 +46,16 @@ func stringFromMap(m map[string]any, key string) string {
 
 // jsonStringFromMap returns a JSON text value for an inbound field that 3x-ui
 // may return either as a string or as a nested object.
+// panelJSONObject coerces a missing or blank panel JSON blob to `{}`.
+// jsontypes.Normalized rejects an empty string, and some protocols (TUIC)
+// persist stream settings and sniffing as blank.
+func panelJSONObject(s string) string {
+	if strings.TrimSpace(s) == "" {
+		return "{}"
+	}
+	return s
+}
+
 func jsonStringFromMap(m map[string]any, key string) string {
 	v, ok := m[key]
 	if !ok || v == nil {
@@ -75,6 +86,22 @@ func int64FromMap(m map[string]any, key string) int64 {
 	default:
 		return 0
 	}
+}
+
+// normalizeSubSortIndex matches 3x-ui: 0 and omitted values are stored as 1.
+// Negative indexes are kept so a primary inbound can sort ahead of the default.
+func normalizeSubSortIndex(v int64) int64 {
+	if v == 0 {
+		return 1
+	}
+	return v
+}
+
+func subSortIndexFromMap(m map[string]any) int64 {
+	if _, ok := m["subSortIndex"]; !ok {
+		return 1
+	}
+	return normalizeSubSortIndex(int64FromMap(m, "subSortIndex"))
 }
 
 func boolFromMap(m map[string]any, key string) bool {

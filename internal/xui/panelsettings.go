@@ -8,13 +8,14 @@ import (
 )
 
 var panelSettingsReadOnlyKeys = map[string]struct{}{
-	"hasTgBotToken":     {},
-	"hasTwoFactorToken": {},
-	"hasLdapPassword":   {},
-	"hasApiToken":       {},
-	"hasWarpSecret":     {},
-	"hasNordSecret":     {},
-	"hasSmtpPassword":   {},
+	"hasTgBotToken":      {},
+	"hasTwoFactorToken":  {},
+	"hasLdapPassword":    {},
+	"hasApiToken":        {},
+	"hasWarpSecret":      {},
+	"hasNordSecret":      {},
+	"hasSmtpPassword":    {},
+	"hasDiscordBotToken": {},
 }
 
 // deprecatedPanelSettingsKeys are no longer accepted by current AllSetting

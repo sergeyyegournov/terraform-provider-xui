@@ -52,11 +52,13 @@ resource "xui_vmess_client" "example" {
 - `enable` (Boolean)
 - `expiry_time` (Number) Expiry in milliseconds since Unix epoch (0 = never).
 - `flow` (String) Flow control when the inbound supports TLS flow (usually empty for VMess).
+- `group` (String) Client group label (`group`). Empty means the client is not in a group.
 - `limit_hwid` (Number) Per-client subscription HWID device limit (`limitHwid`; 0 = unlimited).
 - `limit_ip` (Number)
-- `reset` (Number) Rolling auto-renew interval in days (`reset`). Ignored when `reset_day` is set.
-- `reset_day` (Number) Calendar renewal day of month 1–31 (`resetDay`). `0` keeps rolling `reset` mode.
+- `reset` (Number) Rolling auto-renew interval in days (`reset`). Cannot be combined with `reset_weekday`. The panel ignores it when `reset_day` is set.
+- `reset_day` (Number) Calendar renewal day of month 1–31 (`resetDay`). `0` disables monthly renewal. Cannot be combined with `reset_weekday`.
 - `reset_max` (Number) Maximum number of auto-renewals (`resetMax`; 0 = unlimited).
+- `reset_weekday` (Number) Calendar renewal weekday 1–7, Monday–Sunday (`resetWeekday`). `0` disables weekly renewal. Cannot be combined with `reset` or `reset_day`.
 - `security` (String) Encryption method (e.g. `auto`, `aes-128-gcm`). Defaults to `auto` when set in config.
 - `sub_id` (String)
 - `tg_id` (Number)

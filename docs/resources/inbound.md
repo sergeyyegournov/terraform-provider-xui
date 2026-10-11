@@ -48,10 +48,12 @@ resource "xui_inbound" "example" {
 
 - `disable_flow` (Boolean) When true, opt this inbound out of automatic XTLS Vision flow (`disableFlow`).
 - `enable` (Boolean) Whether the inbound is enabled.
+- `exclude_from_sub` (Boolean) When true, omit this inbound from subscription output while it keeps serving (`excludeFromSub`).
 - `expiry_time` (Number) Expiry time in milliseconds since Unix epoch (0 = never); export field `expiryTime`.
 - `listen` (String) Listen address; empty means all interfaces (panel default).
 - `remark` (String) Inbound remark / display name.
 - `sniffing` (String) `sniffing` JSON string from export. Compared with JSON semantic equality.
+- `sub_sort_index` (Number) Sort order of this inbound's links in subscription output (`subSortIndex`). Lower comes first; negatives are allowed. `0` is stored as `1`.
 - `total` (Number) Total traffic limit for the inbound in bytes (0 = unlimited); export `total`.
 - `traffic_reset` (String) Traffic reset schedule (`never`, `daily`, `weekly`, `monthly`, …).
 - `traffic_reset_day` (Number) Day of month for monthly inbound traffic reset (`trafficResetDay`; 1–31).

@@ -123,6 +123,7 @@ func (p *xuiProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewShadowsocksClientResource,
 		NewHysteriaClientResource,
 		NewAmneziaWGClientResource,
+		NewTUICClientResource,
 		NewXrayTemplateResource,
 		NewPanelSettingsResource,
 	}

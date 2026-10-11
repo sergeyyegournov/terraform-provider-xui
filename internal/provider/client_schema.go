@@ -79,16 +79,28 @@ func clientCommonSchemaAttributes(idDesc string) map[string]schema.Attribute {
 			Default:  stringdefault.StaticString(""),
 		},
 		"reset": schema.Int64Attribute{
-			MarkdownDescription: "Rolling auto-renew interval in days (`reset`). Ignored when `reset_day` is set.",
+			MarkdownDescription: "Rolling auto-renew interval in days (`reset`). Cannot be combined with `reset_weekday`. The panel ignores it when `reset_day` is set.",
 			Optional:            true,
 			Computed:            true,
 			Default:             int64default.StaticInt64(0),
 		},
 		"reset_day": schema.Int64Attribute{
-			MarkdownDescription: "Calendar renewal day of month 1–31 (`resetDay`). `0` keeps rolling `reset` mode.",
+			MarkdownDescription: "Calendar renewal day of month 1–31 (`resetDay`). `0` disables monthly renewal. Cannot be combined with `reset_weekday`.",
 			Optional:            true,
 			Computed:            true,
 			Default:             int64default.StaticInt64(0),
+		},
+		"reset_weekday": schema.Int64Attribute{
+			MarkdownDescription: "Calendar renewal weekday 1–7, Monday–Sunday (`resetWeekday`). `0` disables weekly renewal. Cannot be combined with `reset` or `reset_day`.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(0),
+		},
+		"group": schema.StringAttribute{
+			MarkdownDescription: "Client group label (`group`). Empty means the client is not in a group.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
 		},
 		"reset_max": schema.Int64Attribute{
 			MarkdownDescription: "Maximum number of auto-renewals (`resetMax`; 0 = unlimited).",

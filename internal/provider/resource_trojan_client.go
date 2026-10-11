@@ -16,6 +16,7 @@ import (
 
 var _ resource.Resource = (*trojanClientResource)(nil)
 var _ resource.ResourceWithImportState = (*trojanClientResource)(nil)
+var _ resource.ResourceWithValidateConfig = (*trojanClientResource)(nil)
 
 type trojanClientResource struct {
 	client *xui.Client
@@ -37,6 +38,8 @@ type trojanClientModel struct {
 	Reset           types.Int64  `tfsdk:"reset"`
 	ResetDay        types.Int64  `tfsdk:"reset_day"`
 	ResetMax        types.Int64  `tfsdk:"reset_max"`
+	ResetWeekday    types.Int64  `tfsdk:"reset_weekday"`
+	Group           types.String `tfsdk:"group"`
 	TrafficReset    types.String `tfsdk:"traffic_reset"`
 	TrafficResetDay types.Int64  `tfsdk:"traffic_reset_day"`
 }
@@ -47,6 +50,10 @@ func NewTrojanClientResource() resource.Resource {
 
 func (r *trojanClientResource) Metadata(_ context.Context, _ resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = "xui_trojan_client"
+}
+
+func (r *trojanClientResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	validateClientRenewalConfig(ctx, req.Config, &resp.Diagnostics)
 }
 
 func (r *trojanClientResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -82,7 +89,7 @@ func (m trojanClientModel) toPanelPlan(password string) panelClientPlan {
 	return panelClientPlan{
 		Email: m.Email.ValueString(), Enable: m.Enable, LimitIP: m.LimitIP, LimitHwid: m.LimitHwid,
 		TotalGB: m.TotalGB, ExpiryTime: m.ExpiryTime, TgID: m.TgID, Reset: m.Reset,
-		ResetDay: m.ResetDay, ResetMax: m.ResetMax, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
+		ResetDay: m.ResetDay, ResetWeekday: m.ResetWeekday, ResetMax: m.ResetMax, Group: m.Group, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
 		Flow: types.StringNull(), SubID: m.SubID, Comment: m.Comment, Password: password,
 	}
 }
@@ -165,6 +172,8 @@ func (r *trojanClientResource) Update(ctx context.Context, req resource.UpdateRe
 	state.Reset = plan.Reset
 	state.ResetDay = plan.ResetDay
 	state.ResetMax = plan.ResetMax
+	state.ResetWeekday = plan.ResetWeekday
+	state.Group = plan.Group
 	state.TrafficReset = plan.TrafficReset
 	state.TrafficResetDay = plan.TrafficResetDay
 	if !plan.Password.IsNull() && plan.Password.ValueString() != "" {
@@ -201,5 +210,5 @@ func applyTrojanClientSecretsFromRecord(m *trojanClientModel, rec xui.PanelClien
 
 func applyTrojanRecord(m *trojanClientModel, rec xui.PanelClientRecord) {
 	applyTrojanClientSecretsFromRecord(m, rec)
-	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.LimitHwid, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.ResetDay, &m.ResetMax, &m.TrafficResetDay, &m.TrafficReset, &m.SubID, &m.Comment, rec)
+	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.LimitHwid, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.ResetDay, &m.ResetMax, &m.ResetWeekday, &m.TrafficResetDay, &m.TrafficReset, &m.SubID, &m.Comment, &m.Group, rec)
 }
