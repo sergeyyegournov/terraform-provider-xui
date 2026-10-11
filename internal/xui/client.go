@@ -505,6 +505,15 @@ func (c *Client) UpdateInbound(id int, payload map[string]any) (json.RawMessage,
 	return msg.Obj, nil
 }
 
+// SetInboundEnable toggles only the inbound enable flag. On 3x-ui v3.9+,
+// POST /inbounds/update ignores enable.
+func (c *Client) SetInboundEnable(id int, enable bool) error {
+	_, err := c.postJSON([]string{"panel", "api", "inbounds", "setEnable", fmt.Sprintf("%d", id)}, map[string]any{
+		"enable": enable,
+	})
+	return err
+}
+
 // DeleteInbound removes an inbound.
 func (c *Client) DeleteInbound(id int) error {
 	_, err := c.postJSON([]string{"panel", "api", "inbounds", "del", fmt.Sprintf("%d", id)}, map[string]any{})

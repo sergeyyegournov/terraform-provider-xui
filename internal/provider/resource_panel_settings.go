@@ -35,683 +35,687 @@ func (r *panelSettingsResource) Metadata(_ context.Context, _ resource.MetadataR
 }
 
 func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages 3x-ui panel settings (`/panel/api/setting/update`). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults. Set `restart_panel` to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). Attributes mirror the panel's `AllSetting` model (Telegram, SMTP, LDAP, subscription, etc.).",
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				Computed:            true,
-				MarkdownDescription: "Static resource id (`panel-settings`).",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-
-			// Web server
-			"web_listen": schema.StringAttribute{
-				MarkdownDescription: "Web panel listen IP address (empty = all interfaces).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"web_domain": schema.StringAttribute{
-				MarkdownDescription: "Web panel domain for validation.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"web_port": schema.Int64Attribute{
-				MarkdownDescription: "Web panel port.",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(2053),
-			},
-			"web_cert_file": schema.StringAttribute{
-				MarkdownDescription: "Path to SSL certificate file for the web panel.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"web_key_file": schema.StringAttribute{
-				MarkdownDescription: "Path to SSL private key file for the web panel.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"web_base_path": schema.StringAttribute{
-				MarkdownDescription: "Base path for panel URLs (e.g. `/<uuid>/`).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString("/"),
-			},
-			"trusted_proxy_cidrs": schema.StringAttribute{
-				MarkdownDescription: "Trusted reverse-proxy CIDRs used for forwarded headers.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString("127.0.0.1/32,::1/128"),
-			},
-			"ip_limit_allowlist": schema.StringAttribute{
-				MarkdownDescription: "Comma-separated IPs/CIDRs exempt from per-client IP limiting (`ipLimitAllowlist`).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"panel_proxy": schema.StringAttribute{
-				MarkdownDescription: "Proxy URL used by the panel for outbound requests (`panelOutbound`).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"session_max_age": schema.Int64Attribute{
-				MarkdownDescription: "Session maximum age in minutes.",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(60),
-			},
-
-			// UI
-			"page_size": schema.Int64Attribute{
-				MarkdownDescription: "Number of items per page in lists.",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(50),
-			},
-			"expire_diff": schema.Int64Attribute{
-				MarkdownDescription: "Expiration warning threshold in days.",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(0),
-			},
-			"traffic_diff": schema.Int64Attribute{
-				MarkdownDescription: "Traffic warning threshold percentage.",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(0),
-			},
-			"remark_model": schema.StringAttribute{
-				MarkdownDescription: "Remark template for inbounds (`remarkTemplate`).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"datepicker": schema.StringAttribute{
-				MarkdownDescription: "Date picker format.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString("gregorian"),
-			},
-			"sub_show_identity_on_all_links": schema.BoolAttribute{
-				MarkdownDescription: "Include identity tokens on every subscription link (`subShowIdentityOnAllLinks`).",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-
-			// Telegram bot
-			"tg_bot_enable": schema.BoolAttribute{
-				MarkdownDescription: "Enable Telegram bot notifications.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"tg_bot_token": schema.StringAttribute{
-				MarkdownDescription: "Telegram bot token.",
-				Optional:            true,
-				Computed:            true,
-				Sensitive:           true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"tg_bot_proxy": schema.StringAttribute{
-				MarkdownDescription: "Proxy URL for Telegram bot.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"tg_bot_api_server": schema.StringAttribute{
-				MarkdownDescription: "Custom API server for Telegram bot.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"tg_bot_chat_id": schema.StringAttribute{
-				MarkdownDescription: "Telegram chat ID for notifications.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"tg_run_time": schema.StringAttribute{
-				MarkdownDescription: "Cron schedule for Telegram notifications (e.g. `@daily`).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString("@daily"),
-			},
-			"tg_bot_backup": schema.BoolAttribute{
-				MarkdownDescription: "Enable database backup via Telegram.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"tg_cpu": schema.Int64Attribute{
-				MarkdownDescription: "CPU usage threshold percentage for Telegram alerts.",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(80),
-			},
-			"tg_memory": schema.Int64Attribute{
-				MarkdownDescription: "Memory usage threshold percentage for Telegram alerts.",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(80),
-			},
-			"tg_lang": schema.StringAttribute{
-				MarkdownDescription: "Telegram bot language.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString("en-US"),
-			},
-			"tg_enabled_events": schema.StringAttribute{
-				MarkdownDescription: "Comma-separated Telegram notification events (e.g. `login.attempt,cpu.high`).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString("login.attempt,cpu.high"),
-			},
-
-			// SMTP
-			"smtp_enable": schema.BoolAttribute{
-				MarkdownDescription: "Enable SMTP email notifications.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"smtp_host": schema.StringAttribute{
-				MarkdownDescription: "SMTP server host.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"smtp_port": schema.Int64Attribute{
-				MarkdownDescription: "SMTP server port.",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(587),
-			},
-			"smtp_username": schema.StringAttribute{
-				MarkdownDescription: "SMTP username.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"smtp_password": schema.StringAttribute{
-				MarkdownDescription: "SMTP password.",
-				Optional:            true,
-				Computed:            true,
-				Sensitive:           true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"smtp_from": schema.StringAttribute{
-				MarkdownDescription: "SMTP From address.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"smtp_from_name": schema.StringAttribute{
-				MarkdownDescription: "SMTP From display name.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"smtp_to": schema.StringAttribute{
-				MarkdownDescription: "SMTP recipient address(es).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"smtp_encryption_type": schema.StringAttribute{
-				MarkdownDescription: "SMTP encryption type (`no`, `starttls`, or `tls`).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString("starttls"),
-			},
-			"smtp_enabled_events": schema.StringAttribute{
-				MarkdownDescription: "Comma-separated SMTP notification events (e.g. `login.attempt,cpu.high`).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString("login.attempt,cpu.high"),
-			},
-			"smtp_cpu": schema.Int64Attribute{
-				MarkdownDescription: "CPU usage threshold percentage for SMTP alerts.",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(80),
-			},
-			"smtp_memory": schema.Int64Attribute{
-				MarkdownDescription: "Memory usage threshold percentage for SMTP alerts.",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(80),
-			},
-
-			"outbound_down_threshold": schema.Int64Attribute{
-				MarkdownDescription: "Consecutive failed observatory probes before an outbound.down event fires.",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(3),
-			},
-
-			// Security
-			"time_location": schema.StringAttribute{
-				MarkdownDescription: "Time zone location (e.g. `UTC`, `Asia/Tehran`).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString("UTC"),
-			},
-			"two_factor_enable": schema.BoolAttribute{
-				MarkdownDescription: "Enable two-factor authentication for the panel.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"two_factor_token": schema.StringAttribute{
-				MarkdownDescription: "Two-factor authentication secret / token.",
-				Optional:            true,
-				Computed:            true,
-				Sensitive:           true,
-				Default:             stringdefault.StaticString(""),
-			},
-
-			// LDAP
-			"ldap_enable": schema.BoolAttribute{
-				MarkdownDescription: "Enable LDAP authentication.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"ldap_host": schema.StringAttribute{
-				MarkdownDescription: "LDAP server host.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"ldap_port": schema.Int64Attribute{
-				MarkdownDescription: "LDAP server port.",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(389),
-			},
-			"ldap_use_tls": schema.BoolAttribute{
-				MarkdownDescription: "Use TLS for LDAP connections.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"ldap_insecure_skip_verify": schema.BoolAttribute{
-				MarkdownDescription: "Skip TLS certificate verification for LDAP connections.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"ldap_bind_dn": schema.StringAttribute{
-				MarkdownDescription: "LDAP bind DN.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"ldap_password": schema.StringAttribute{
-				MarkdownDescription: "LDAP bind password.",
-				Optional:            true,
-				Computed:            true,
-				Sensitive:           true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"ldap_base_dn": schema.StringAttribute{
-				MarkdownDescription: "LDAP base DN for searches.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"ldap_user_filter": schema.StringAttribute{
-				MarkdownDescription: "LDAP user search filter.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"ldap_user_attr": schema.StringAttribute{
-				MarkdownDescription: "LDAP attribute for username (e.g. `mail` or `uid`).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"ldap_vless_field": schema.StringAttribute{
-				MarkdownDescription: "LDAP attribute mapped to VLESS identity.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"ldap_sync_cron": schema.StringAttribute{
-				MarkdownDescription: "Cron schedule for LDAP sync.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"ldap_flag_field": schema.StringAttribute{
-				MarkdownDescription: "LDAP attribute used as a generic flag.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"ldap_truthy_values": schema.StringAttribute{
-				MarkdownDescription: "Comma-separated values treated as true for the flag field.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"ldap_invert_flag": schema.BoolAttribute{
-				MarkdownDescription: "Invert LDAP flag interpretation.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"ldap_inbound_tags": schema.StringAttribute{
-				MarkdownDescription: "Inbound tags for LDAP-provisioned users.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"ldap_auto_create": schema.BoolAttribute{
-				MarkdownDescription: "Automatically create clients from LDAP.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"ldap_auto_delete": schema.BoolAttribute{
-				MarkdownDescription: "Automatically delete clients removed from LDAP.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"ldap_default_total_gb": schema.Int64Attribute{
-				MarkdownDescription: "Default traffic limit in GB for LDAP-created clients (0 = unlimited).",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(0),
-			},
-			"ldap_default_expiry_days": schema.Int64Attribute{
-				MarkdownDescription: "Default account expiry in days for LDAP-created clients (0 = never).",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(0),
-			},
-			"ldap_default_limit_ip": schema.Int64Attribute{
-				MarkdownDescription: "Default IP limit for LDAP-created clients.",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(0),
-			},
-
-			// Subscription server
-			"sub_enable": schema.BoolAttribute{
-				MarkdownDescription: "Enable subscription server.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"sub_json_enable": schema.BoolAttribute{
-				MarkdownDescription: "Enable JSON subscription endpoint.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"sub_json_auto_detect": schema.BoolAttribute{
-				MarkdownDescription: "Auto-detect clients that should receive JSON subscriptions.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"sub_json_always_array": schema.BoolAttribute{
-				MarkdownDescription: "Always return JSON subscriptions as an array.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"sub_json_user_agent_regex": schema.StringAttribute{
-				MarkdownDescription: "User-Agent regex for JSON subscription auto-detect.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_clash_auto_detect": schema.BoolAttribute{
-				MarkdownDescription: "Auto-detect clients that should receive Clash/Mihomo subscriptions.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"sub_clash_user_agent_regex": schema.StringAttribute{
-				MarkdownDescription: "User-Agent regex for Clash/Mihomo subscription auto-detect.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_json_observatory": schema.StringAttribute{
-				MarkdownDescription: "JSON subscription observatory configuration (`subJsonObservatory`).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_title": schema.StringAttribute{
-				MarkdownDescription: "Subscription title.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_support_url": schema.StringAttribute{
-				MarkdownDescription: "Subscription support URL.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_profile_url": schema.StringAttribute{
-				MarkdownDescription: "Subscription profile URL.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_announce": schema.StringAttribute{
-				MarkdownDescription: "Subscription announcement.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_listen": schema.StringAttribute{
-				MarkdownDescription: "Subscription server listen IP.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_port": schema.Int64Attribute{
-				MarkdownDescription: "Subscription server port.",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(2096),
-			},
-			"sub_path": schema.StringAttribute{
-				MarkdownDescription: "Base path for subscription URLs.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString("/sub/"),
-			},
-			"sub_domain": schema.StringAttribute{
-				MarkdownDescription: "Domain for subscription server validation.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_cert_file": schema.StringAttribute{
-				MarkdownDescription: "SSL certificate file for subscription server.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_key_file": schema.StringAttribute{
-				MarkdownDescription: "SSL private key file for subscription server.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_updates": schema.Int64Attribute{
-				MarkdownDescription: "Subscription update interval in minutes.",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(12),
-			},
-			"sub_encrypt": schema.BoolAttribute{
-				MarkdownDescription: "Encrypt subscription responses.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"sub_uri": schema.StringAttribute{
-				MarkdownDescription: "Subscription server URI.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_json_path": schema.StringAttribute{
-				MarkdownDescription: "Path for JSON subscription endpoint.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString("/json/"),
-			},
-			"sub_json_uri": schema.StringAttribute{
-				MarkdownDescription: "JSON subscription server URI.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_json_mux": schema.StringAttribute{
-				MarkdownDescription: "JSON subscription mux configuration." + panelSettingsJSONAttrNote,
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-				PlanModifiers: []planmodifier.String{
-					jsonSemanticString(),
-				},
-			},
-			"sub_json_rules": schema.StringAttribute{
-				MarkdownDescription: "JSON subscription routing rules." + panelSettingsJSONAttrNote,
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-				PlanModifiers: []planmodifier.String{
-					jsonSemanticString(),
-				},
-			},
-			"sub_json_final_mask": schema.StringAttribute{
-				MarkdownDescription: "JSON subscription FinalMask configuration." + panelSettingsJSONAttrNote,
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-				PlanModifiers: []planmodifier.String{
-					jsonSemanticString(),
-				},
-			},
-			"sub_enable_routing": schema.BoolAttribute{
-				MarkdownDescription: "Enable routing for subscription.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"sub_routing_rules": schema.StringAttribute{
-				MarkdownDescription: "Subscription global routing rules (plain text, not JSON).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_incy_enable_routing": schema.BoolAttribute{
-				MarkdownDescription: "Enable Incy routing for subscription.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"sub_incy_routing_rules": schema.StringAttribute{
-				MarkdownDescription: "Incy routing rules (plain text).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_clash_enable": schema.BoolAttribute{
-				MarkdownDescription: "Enable Clash/Mihomo subscription endpoint.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(true),
-			},
-			"sub_clash_path": schema.StringAttribute{
-				MarkdownDescription: "Path for Clash/Mihomo subscription endpoint.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString("/clash/"),
-			},
-			"sub_clash_uri": schema.StringAttribute{
-				MarkdownDescription: "Clash/Mihomo subscription URI.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_clash_enable_routing": schema.BoolAttribute{
-				MarkdownDescription: "Enable Clash/Mihomo subscription routing rules.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"sub_clash_rules": schema.StringAttribute{
-				MarkdownDescription: "Clash/Mihomo subscription routing rules (plain text).",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_theme_dir": schema.StringAttribute{
-				MarkdownDescription: "Directory for custom subscription theme assets.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"sub_hide_settings": schema.BoolAttribute{
-				MarkdownDescription: "Hide settings section in subscription pages.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"restart_xray_on_client_disable": schema.BoolAttribute{
-				MarkdownDescription: "Restart Xray when clients are auto-disabled by expiry/traffic limits.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(true),
-			},
-			"external_traffic_inform_enable": schema.BoolAttribute{
-				MarkdownDescription: "Enable external traffic reporting.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
-			},
-			"external_traffic_inform_uri": schema.StringAttribute{
-				MarkdownDescription: "URI for external traffic reporting.",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-			},
-			"warp_update_interval": schema.Int64Attribute{
-				MarkdownDescription: "WARP account update interval in hours (0 = disabled).",
-				Optional:            true,
-				Computed:            true,
-				Default:             int64default.StaticInt64(0),
-			},
-
-			// Restart
-			"restart_panel": schema.BoolAttribute{
-				MarkdownDescription: "If true, restart the panel after applying settings changes. Required for web listen/port/cert changes to take effect.",
-				Optional:            true,
-				Computed:            true,
-				Default:             booldefault.StaticBool(false),
+	attrs := map[string]schema.Attribute{
+		"id": schema.StringAttribute{
+			Computed:            true,
+			MarkdownDescription: "Static resource id (`panel-settings`).",
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
 			},
 		},
+
+		// Web server
+		"web_listen": schema.StringAttribute{
+			MarkdownDescription: "Web panel listen IP address (empty = all interfaces).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"web_domain": schema.StringAttribute{
+			MarkdownDescription: "Web panel domain for validation.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"web_port": schema.Int64Attribute{
+			MarkdownDescription: "Web panel port.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(2053),
+		},
+		"web_cert_file": schema.StringAttribute{
+			MarkdownDescription: "Path to SSL certificate file for the web panel.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"web_key_file": schema.StringAttribute{
+			MarkdownDescription: "Path to SSL private key file for the web panel.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"web_base_path": schema.StringAttribute{
+			MarkdownDescription: "Base path for panel URLs (e.g. `/<uuid>/`).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString("/"),
+		},
+		"trusted_proxy_cidrs": schema.StringAttribute{
+			MarkdownDescription: "Trusted reverse-proxy CIDRs used for forwarded headers.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString("127.0.0.1/32,::1/128"),
+		},
+		"ip_limit_allowlist": schema.StringAttribute{
+			MarkdownDescription: "Comma-separated IPs/CIDRs exempt from per-client IP limiting (`ipLimitAllowlist`).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"panel_proxy": schema.StringAttribute{
+			MarkdownDescription: "Proxy URL used by the panel for outbound requests (`panelOutbound`).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"session_max_age": schema.Int64Attribute{
+			MarkdownDescription: "Session maximum age in minutes.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(60),
+		},
+
+		// UI
+		"page_size": schema.Int64Attribute{
+			MarkdownDescription: "Number of items per page in lists.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(50),
+		},
+		"expire_diff": schema.Int64Attribute{
+			MarkdownDescription: "Expiration warning threshold in days.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(0),
+		},
+		"traffic_diff": schema.Int64Attribute{
+			MarkdownDescription: "Traffic warning threshold percentage.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(0),
+		},
+		"remark_model": schema.StringAttribute{
+			MarkdownDescription: "Remark template for inbounds (`remarkTemplate`).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"datepicker": schema.StringAttribute{
+			MarkdownDescription: "Date picker format.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString("gregorian"),
+		},
+		"sub_show_identity_on_all_links": schema.BoolAttribute{
+			MarkdownDescription: "Include identity tokens on every subscription link (`subShowIdentityOnAllLinks`).",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+
+		// Telegram bot
+		"tg_bot_enable": schema.BoolAttribute{
+			MarkdownDescription: "Enable Telegram bot notifications.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"tg_bot_token": schema.StringAttribute{
+			MarkdownDescription: "Telegram bot token.",
+			Optional:            true,
+			Computed:            true,
+			Sensitive:           true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"tg_bot_proxy": schema.StringAttribute{
+			MarkdownDescription: "Proxy URL for Telegram bot.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"tg_bot_api_server": schema.StringAttribute{
+			MarkdownDescription: "Custom API server for Telegram bot.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"tg_bot_chat_id": schema.StringAttribute{
+			MarkdownDescription: "Telegram chat ID for notifications.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"tg_run_time": schema.StringAttribute{
+			MarkdownDescription: "Cron schedule for Telegram notifications (e.g. `@daily`).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString("@daily"),
+		},
+		"tg_bot_backup": schema.BoolAttribute{
+			MarkdownDescription: "Enable database backup via Telegram.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"tg_cpu": schema.Int64Attribute{
+			MarkdownDescription: "CPU usage threshold percentage for Telegram alerts.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(80),
+		},
+		"tg_memory": schema.Int64Attribute{
+			MarkdownDescription: "Memory usage threshold percentage for Telegram alerts.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(80),
+		},
+		"tg_lang": schema.StringAttribute{
+			MarkdownDescription: "Telegram bot language.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString("en-US"),
+		},
+		"tg_enabled_events": schema.StringAttribute{
+			MarkdownDescription: "Comma-separated Telegram notification events (e.g. `login.attempt,cpu.high`).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString("login.attempt,cpu.high"),
+		},
+
+		// SMTP
+		"smtp_enable": schema.BoolAttribute{
+			MarkdownDescription: "Enable SMTP email notifications.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"smtp_host": schema.StringAttribute{
+			MarkdownDescription: "SMTP server host.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"smtp_port": schema.Int64Attribute{
+			MarkdownDescription: "SMTP server port.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(587),
+		},
+		"smtp_username": schema.StringAttribute{
+			MarkdownDescription: "SMTP username.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"smtp_password": schema.StringAttribute{
+			MarkdownDescription: "SMTP password.",
+			Optional:            true,
+			Computed:            true,
+			Sensitive:           true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"smtp_from": schema.StringAttribute{
+			MarkdownDescription: "SMTP From address.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"smtp_from_name": schema.StringAttribute{
+			MarkdownDescription: "SMTP From display name.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"smtp_to": schema.StringAttribute{
+			MarkdownDescription: "SMTP recipient address(es).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"smtp_encryption_type": schema.StringAttribute{
+			MarkdownDescription: "SMTP encryption type (`no`, `starttls`, or `tls`).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString("starttls"),
+		},
+		"smtp_enabled_events": schema.StringAttribute{
+			MarkdownDescription: "Comma-separated SMTP notification events (e.g. `login.attempt,cpu.high`).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString("login.attempt,cpu.high"),
+		},
+		"smtp_cpu": schema.Int64Attribute{
+			MarkdownDescription: "CPU usage threshold percentage for SMTP alerts.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(80),
+		},
+		"smtp_memory": schema.Int64Attribute{
+			MarkdownDescription: "Memory usage threshold percentage for SMTP alerts.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(80),
+		},
+
+		"outbound_down_threshold": schema.Int64Attribute{
+			MarkdownDescription: "Consecutive failed observatory probes before an outbound.down event fires.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(3),
+		},
+
+		// Security
+		"time_location": schema.StringAttribute{
+			MarkdownDescription: "Time zone location (e.g. `UTC`, `Asia/Tehran`).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString("UTC"),
+		},
+		"two_factor_enable": schema.BoolAttribute{
+			MarkdownDescription: "Enable two-factor authentication for the panel.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"two_factor_token": schema.StringAttribute{
+			MarkdownDescription: "Two-factor authentication secret / token.",
+			Optional:            true,
+			Computed:            true,
+			Sensitive:           true,
+			Default:             stringdefault.StaticString(""),
+		},
+
+		// LDAP
+		"ldap_enable": schema.BoolAttribute{
+			MarkdownDescription: "Enable LDAP authentication.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"ldap_host": schema.StringAttribute{
+			MarkdownDescription: "LDAP server host.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"ldap_port": schema.Int64Attribute{
+			MarkdownDescription: "LDAP server port.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(389),
+		},
+		"ldap_use_tls": schema.BoolAttribute{
+			MarkdownDescription: "Use TLS for LDAP connections.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"ldap_insecure_skip_verify": schema.BoolAttribute{
+			MarkdownDescription: "Skip TLS certificate verification for LDAP connections.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"ldap_bind_dn": schema.StringAttribute{
+			MarkdownDescription: "LDAP bind DN.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"ldap_password": schema.StringAttribute{
+			MarkdownDescription: "LDAP bind password.",
+			Optional:            true,
+			Computed:            true,
+			Sensitive:           true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"ldap_base_dn": schema.StringAttribute{
+			MarkdownDescription: "LDAP base DN for searches.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"ldap_user_filter": schema.StringAttribute{
+			MarkdownDescription: "LDAP user search filter.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"ldap_user_attr": schema.StringAttribute{
+			MarkdownDescription: "LDAP attribute for username (e.g. `mail` or `uid`).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"ldap_vless_field": schema.StringAttribute{
+			MarkdownDescription: "LDAP attribute mapped to VLESS identity.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"ldap_sync_cron": schema.StringAttribute{
+			MarkdownDescription: "Cron schedule for LDAP sync.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"ldap_flag_field": schema.StringAttribute{
+			MarkdownDescription: "LDAP attribute used as a generic flag.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"ldap_truthy_values": schema.StringAttribute{
+			MarkdownDescription: "Comma-separated values treated as true for the flag field.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"ldap_invert_flag": schema.BoolAttribute{
+			MarkdownDescription: "Invert LDAP flag interpretation.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"ldap_inbound_tags": schema.StringAttribute{
+			MarkdownDescription: "Inbound tags for LDAP-provisioned users.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"ldap_auto_create": schema.BoolAttribute{
+			MarkdownDescription: "Automatically create clients from LDAP.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"ldap_auto_delete": schema.BoolAttribute{
+			MarkdownDescription: "Automatically delete clients removed from LDAP.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"ldap_default_total_gb": schema.Int64Attribute{
+			MarkdownDescription: "Default traffic limit in GB for LDAP-created clients (0 = unlimited).",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(0),
+		},
+		"ldap_default_expiry_days": schema.Int64Attribute{
+			MarkdownDescription: "Default account expiry in days for LDAP-created clients (0 = never).",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(0),
+		},
+		"ldap_default_limit_ip": schema.Int64Attribute{
+			MarkdownDescription: "Default IP limit for LDAP-created clients.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(0),
+		},
+
+		// Subscription server
+		"sub_enable": schema.BoolAttribute{
+			MarkdownDescription: "Enable subscription server.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"sub_json_enable": schema.BoolAttribute{
+			MarkdownDescription: "Enable JSON subscription endpoint.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"sub_json_auto_detect": schema.BoolAttribute{
+			MarkdownDescription: "Auto-detect clients that should receive JSON subscriptions.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"sub_json_always_array": schema.BoolAttribute{
+			MarkdownDescription: "Always return JSON subscriptions as an array.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"sub_json_user_agent_regex": schema.StringAttribute{
+			MarkdownDescription: "User-Agent regex for JSON subscription auto-detect.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_clash_auto_detect": schema.BoolAttribute{
+			MarkdownDescription: "Auto-detect clients that should receive Clash/Mihomo subscriptions.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"sub_clash_user_agent_regex": schema.StringAttribute{
+			MarkdownDescription: "User-Agent regex for Clash/Mihomo subscription auto-detect.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_json_observatory": schema.StringAttribute{
+			MarkdownDescription: "JSON subscription observatory configuration (`subJsonObservatory`).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_title": schema.StringAttribute{
+			MarkdownDescription: "Subscription title.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_support_url": schema.StringAttribute{
+			MarkdownDescription: "Subscription support URL.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_profile_url": schema.StringAttribute{
+			MarkdownDescription: "Subscription profile URL.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_announce": schema.StringAttribute{
+			MarkdownDescription: "Subscription announcement.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_listen": schema.StringAttribute{
+			MarkdownDescription: "Subscription server listen IP.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_port": schema.Int64Attribute{
+			MarkdownDescription: "Subscription server port.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(2096),
+		},
+		"sub_path": schema.StringAttribute{
+			MarkdownDescription: "Base path for subscription URLs.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString("/sub/"),
+		},
+		"sub_domain": schema.StringAttribute{
+			MarkdownDescription: "Domain for subscription server validation.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_cert_file": schema.StringAttribute{
+			MarkdownDescription: "SSL certificate file for subscription server.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_key_file": schema.StringAttribute{
+			MarkdownDescription: "SSL private key file for subscription server.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_updates": schema.Int64Attribute{
+			MarkdownDescription: "Subscription update interval in minutes.",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(12),
+		},
+		"sub_encrypt": schema.BoolAttribute{
+			MarkdownDescription: "Encrypt subscription responses.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"sub_uri": schema.StringAttribute{
+			MarkdownDescription: "Subscription server URI.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_json_path": schema.StringAttribute{
+			MarkdownDescription: "Path for JSON subscription endpoint.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString("/json/"),
+		},
+		"sub_json_uri": schema.StringAttribute{
+			MarkdownDescription: "JSON subscription server URI.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_json_mux": schema.StringAttribute{
+			MarkdownDescription: "JSON subscription mux configuration." + panelSettingsJSONAttrNote,
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+			PlanModifiers: []planmodifier.String{
+				jsonSemanticString(),
+			},
+		},
+		"sub_json_rules": schema.StringAttribute{
+			MarkdownDescription: "JSON subscription routing rules." + panelSettingsJSONAttrNote,
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+			PlanModifiers: []planmodifier.String{
+				jsonSemanticString(),
+			},
+		},
+		"sub_json_final_mask": schema.StringAttribute{
+			MarkdownDescription: "JSON subscription FinalMask configuration." + panelSettingsJSONAttrNote,
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+			PlanModifiers: []planmodifier.String{
+				jsonSemanticString(),
+			},
+		},
+		"sub_enable_routing": schema.BoolAttribute{
+			MarkdownDescription: "Enable routing for subscription.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"sub_routing_rules": schema.StringAttribute{
+			MarkdownDescription: "Subscription global routing rules (plain text, not JSON).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_incy_enable_routing": schema.BoolAttribute{
+			MarkdownDescription: "Enable Incy routing for subscription.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"sub_incy_routing_rules": schema.StringAttribute{
+			MarkdownDescription: "Incy routing rules (plain text).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_clash_enable": schema.BoolAttribute{
+			MarkdownDescription: "Enable Clash/Mihomo subscription endpoint.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(true),
+		},
+		"sub_clash_path": schema.StringAttribute{
+			MarkdownDescription: "Path for Clash/Mihomo subscription endpoint.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString("/clash/"),
+		},
+		"sub_clash_uri": schema.StringAttribute{
+			MarkdownDescription: "Clash/Mihomo subscription URI.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_clash_enable_routing": schema.BoolAttribute{
+			MarkdownDescription: "Enable Clash/Mihomo subscription routing rules.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"sub_clash_rules": schema.StringAttribute{
+			MarkdownDescription: "Clash/Mihomo subscription routing rules (plain text).",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_theme_dir": schema.StringAttribute{
+			MarkdownDescription: "Directory for custom subscription theme assets.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"sub_hide_settings": schema.BoolAttribute{
+			MarkdownDescription: "Hide settings section in subscription pages.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"restart_xray_on_client_disable": schema.BoolAttribute{
+			MarkdownDescription: "Restart Xray when a client is disabled or deleted, including expiry and quota. Since 3x-ui v3.8.5 this also covers a manual disable or delete.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(true),
+		},
+		"external_traffic_inform_enable": schema.BoolAttribute{
+			MarkdownDescription: "Enable external traffic reporting.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"external_traffic_inform_uri": schema.StringAttribute{
+			MarkdownDescription: "URI for external traffic reporting.",
+			Optional:            true,
+			Computed:            true,
+			Default:             stringdefault.StaticString(""),
+		},
+		"warp_update_interval": schema.Int64Attribute{
+			MarkdownDescription: "WARP account update interval in hours (0 = disabled).",
+			Optional:            true,
+			Computed:            true,
+			Default:             int64default.StaticInt64(0),
+		},
+
+		// Restart
+		"restart_panel": schema.BoolAttribute{
+			MarkdownDescription: "If true, restart the panel after applying settings changes. Required for web listen/port/cert changes to take effect.",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+	}
+	for k, v := range panelSettingsV39Attributes() {
+		attrs[k] = v
+	}
+	resp.Schema = schema.Schema{
+		MarkdownDescription: "Manages 3x-ui panel settings (`/panel/api/setting/update`). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults, except `sub_profile_mode`, which is left unset so an existing panel value is kept. Set `restart_panel` to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). Attributes mirror the panel's `AllSetting` model (Telegram, SMTP, LDAP, subscription, Discord, Happ, etc.).",
+		Attributes:          attrs,
 	}
 }
 
@@ -848,12 +852,86 @@ type panelSettingsModel struct {
 	ExternalTrafficInformURI    types.String `tfsdk:"external_traffic_inform_uri"`
 	WarpUpdateInterval          types.Int64  `tfsdk:"warp_update_interval"`
 
+	// 3.9 settings
+	SubProfileMode             types.String `tfsdk:"sub_profile_mode"`
+	RealityScanCandidates      types.String `tfsdk:"reality_scan_candidates"`
+	SubInfoNodeEnable          types.Bool   `tfsdk:"sub_info_node_enable"`
+	SubCalendarExpireInclusive types.Bool   `tfsdk:"sub_calendar_expire_inclusive"`
+	SubExpiredTemplate         types.String `tfsdk:"sub_expired_template"`
+	SubTrafficDepletedTemplate types.String `tfsdk:"sub_traffic_depleted_template"`
+	ExternalSubUserAgent       types.String `tfsdk:"external_sub_user_agent"`
+	SubJSONRoutingRules        types.String `tfsdk:"sub_json_routing_rules"`
+	SubJSONDNS                 types.String `tfsdk:"sub_json_dns"`
+	HappLinkEnable             types.Bool   `tfsdk:"happ_link_enable"`
+	DiscordBotEnable           types.Bool   `tfsdk:"discord_bot_enable"`
+	DiscordBotToken            types.String `tfsdk:"discord_bot_token"`
+	DiscordChannelID           types.String `tfsdk:"discord_channel_id"`
+	DiscordAdminIDs            types.String `tfsdk:"discord_admin_ids"`
+	DiscordRunTime             types.String `tfsdk:"discord_run_time"`
+	DiscordBotBackup           types.Bool   `tfsdk:"discord_bot_backup"`
+	DiscordCPU                 types.Int64  `tfsdk:"discord_cpu"`
+	DiscordMemory              types.Int64  `tfsdk:"discord_memory"`
+	DiscordLang                types.String `tfsdk:"discord_lang"`
+	DiscordEnabledEvents       types.String `tfsdk:"discord_enabled_events"`
+	SubHappAutoDetect          types.Bool   `tfsdk:"sub_happ_auto_detect"`
+	SubHappProviderID          types.String `tfsdk:"sub_happ_provider_id"`
+	SubHappNewURL              types.String `tfsdk:"sub_happ_new_url"`
+	SubHappFallbackURL         types.String `tfsdk:"sub_happ_fallback_url"`
+	SubHappSubInfoColor        types.String `tfsdk:"sub_happ_sub_info_color"`
+	SubHappSubInfoText         types.String `tfsdk:"sub_happ_sub_info_text"`
+	SubHappSubInfoButtonText   types.String `tfsdk:"sub_happ_sub_info_button_text"`
+	SubHappSubInfoButtonLink   types.String `tfsdk:"sub_happ_sub_info_button_link"`
+	SubHappSubExpire           types.Bool   `tfsdk:"sub_happ_sub_expire"`
+	SubHappSubExpireButtonLink types.String `tfsdk:"sub_happ_sub_expire_button_link"`
+	SubHappNotificationExpire  types.Bool   `tfsdk:"sub_happ_notification_expire"`
+	SubHappNoLimit             types.Bool   `tfsdk:"sub_happ_no_limit"`
+	SubHappAlwaysHwid          types.Bool   `tfsdk:"sub_happ_always_hwid"`
+	SubHappTunMode             types.String `tfsdk:"sub_happ_tun_mode"`
+	SubHappTunType             types.String `tfsdk:"sub_happ_tun_type"`
+	SubHappExcludeRoutes       types.String `tfsdk:"sub_happ_exclude_routes"`
+	SubHappExcludeApns         types.Bool   `tfsdk:"sub_happ_exclude_apns"`
+	SubHappColorProfile        types.String `tfsdk:"sub_happ_color_profile"`
+	SubHappPingType            types.String `tfsdk:"sub_happ_ping_type"`
+	SubHappAutoConnect         types.Bool   `tfsdk:"sub_happ_auto_connect"`
+	SubHappAutoConnectType     types.String `tfsdk:"sub_happ_auto_connect_type"`
+	SubHappPerAppMode          types.String `tfsdk:"sub_happ_per_app_mode"`
+	SubHappPerAppList          types.String `tfsdk:"sub_happ_per_app_list"`
+	SubHappLocalProxyAuth      types.String `tfsdk:"sub_happ_local_proxy_auth"`
+	SubIncyAppAutoDetect       types.Bool   `tfsdk:"sub_incy_app_auto_detect"`
+	SubIncyProfileDescription  types.String `tfsdk:"sub_incy_profile_description"`
+	SubIncySortOrder           types.String `tfsdk:"sub_incy_sort_order"`
+	SubIncySupportEmail        types.String `tfsdk:"sub_incy_support_email"`
+	SubIncyAnnounceURL         types.String `tfsdk:"sub_incy_announce_url"`
+	SubIncyPremiumURL          types.String `tfsdk:"sub_incy_premium_url"`
+	SubIncyBannerText          types.String `tfsdk:"sub_incy_banner_text"`
+	SubIncyBannerButtonText    types.String `tfsdk:"sub_incy_banner_button_text"`
+	SubIncyBannerButtonURL     types.String `tfsdk:"sub_incy_banner_button_url"`
+	SubIncyBannerBgColor       types.String `tfsdk:"sub_incy_banner_bg_color"`
+	SubIncyBannerButtonColor   types.String `tfsdk:"sub_incy_banner_button_color"`
+	SubIncyHideURL             types.String `tfsdk:"sub_incy_hide_url"`
+	SubIncyHideCheck           types.String `tfsdk:"sub_incy_hide_check"`
+	SubIncyNoLimitEnabled      types.String `tfsdk:"sub_incy_no_limit_enabled"`
+	SubIncyPerAppEnable        types.String `tfsdk:"sub_incy_per_app_enable"`
+	SubIncyPerAppMode          types.String `tfsdk:"sub_incy_per_app_mode"`
+	SubIncyPerAppList          types.String `tfsdk:"sub_incy_per_app_list"`
+	SubIncyFragmentationEnable types.String `tfsdk:"sub_incy_fragmentation_enable"`
+	SubIncyFragmentLength      types.String `tfsdk:"sub_incy_fragment_length"`
+	SubIncyFragmentInterval    types.String `tfsdk:"sub_incy_fragment_interval"`
+	SubIncyFragmentPackets     types.String `tfsdk:"sub_incy_fragment_packets"`
+	SubIncyNoisesEnable        types.String `tfsdk:"sub_incy_noises_enable"`
+	SubIncyNoisesType          types.String `tfsdk:"sub_incy_noises_type"`
+	SubIncyNoisesPacket        types.String `tfsdk:"sub_incy_noises_packet"`
+	SubIncyNoisesDelay         types.String `tfsdk:"sub_incy_noises_delay"`
+	SubIncyResolveEnable       types.String `tfsdk:"sub_incy_resolve_enable"`
+	SubIncyResolveDNSDomain    types.String `tfsdk:"sub_incy_resolve_dns_domain"`
+	SubIncyResolveDNSIP        types.String `tfsdk:"sub_incy_resolve_dns_ip"`
+
 	// Restart
 	RestartPanel types.Bool `tfsdk:"restart_panel"`
 }
 
 func (r *panelSettingsResource) modelToPayload(m *panelSettingsModel) map[string]any {
-	return map[string]any{
+	payload := map[string]any{
 		"webListen":                   m.WebListen.ValueString(),
 		"webDomain":                   m.WebDomain.ValueString(),
 		"webPort":                     m.WebPort.ValueInt64(),
@@ -960,6 +1038,8 @@ func (r *panelSettingsResource) modelToPayload(m *panelSettingsModel) map[string
 		"externalTrafficInformURI":    m.ExternalTrafficInformURI.ValueString(),
 		"warpUpdateInterval":          m.WarpUpdateInterval.ValueInt64(),
 	}
+	appendPanelSettingsV39(m, payload)
+	return payload
 }
 
 // panelSettingsOptionalKeys were added after 3x-ui v3.5.0. Older panels omit
@@ -1089,6 +1169,7 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.ExternalTrafficInformEnable = types.BoolValue(boolFromMap(m, "externalTrafficInformEnable"))
 	state.ExternalTrafficInformURI = types.StringValue(stringFromMap(m, "externalTrafficInformURI"))
 	state.WarpUpdateInterval = types.Int64Value(int64FromMap(m, "warpUpdateInterval"))
+	applyPanelSettingsV39(m, state)
 }
 
 func assignOptionalString(m map[string]any, key string, dest *types.String, absentDefault string) {
@@ -1126,6 +1207,7 @@ func validatePanelSettingsJSON(m *panelSettingsModel) error {
 		"sub_json_mux":        m.SubJSONMux,
 		"sub_json_rules":      m.SubJSONRules,
 		"sub_json_final_mask": m.SubJSONFinalMask,
+		"sub_json_dns":        m.SubJSONDNS,
 	} {
 		if err := validateOptionalJSONString(val.ValueString(), name); err != nil {
 			return err
@@ -1164,6 +1246,10 @@ func (r *panelSettingsResource) Create(ctx context.Context, req resource.CreateR
 		tflog.Info(ctx, "xui_panel_settings create panel restart succeeded")
 	}
 	plan.ID = types.StringValue("panel-settings")
+	if err := r.finalizeSubProfileMode(&plan); err != nil {
+		resp.Diagnostics.AddError("API error", err.Error())
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -1215,6 +1301,10 @@ func (r *panelSettingsResource) Update(ctx context.Context, req resource.UpdateR
 		tflog.Info(ctx, "xui_panel_settings update panel restart succeeded")
 	}
 	plan.ID = types.StringValue("panel-settings")
+	if err := r.finalizeSubProfileMode(&plan); err != nil {
+		resp.Diagnostics.AddError("API error", err.Error())
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 

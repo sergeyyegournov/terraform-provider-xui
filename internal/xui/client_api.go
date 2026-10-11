@@ -25,9 +25,11 @@ type PanelClientRecord struct {
 	Comment         string `json:"comment,omitempty"`
 	Reset           int64  `json:"reset"`
 	ResetDay        int64  `json:"resetDay"`
+	ResetWeekday    int64  `json:"resetWeekday"`
 	ResetMax        int64  `json:"resetMax"`
 	TrafficReset    string `json:"trafficReset,omitempty"`
 	TrafficResetDay int64  `json:"trafficResetDay,omitempty"`
+	Group           string `json:"group,omitempty"`
 	PrivateKey      string `json:"privateKey,omitempty"`
 	PublicKey       string `json:"publicKey,omitempty"`
 	PreSharedKey    string `json:"preSharedKey,omitempty"`
@@ -56,14 +58,16 @@ type PanelClientInput struct {
 	Comment         string   `json:"comment,omitempty"`
 	Reset           int64    `json:"reset"`
 	ResetDay        int64    `json:"resetDay"`
+	ResetWeekday    int64    `json:"resetWeekday"`
 	ResetMax        int64    `json:"resetMax"`
 	TrafficReset    string   `json:"trafficReset,omitempty"`
 	TrafficResetDay int64    `json:"trafficResetDay,omitempty"`
+	Group           string   `json:"group,omitempty"`
 	PrivateKey      string   `json:"privateKey,omitempty"`
 	PublicKey       string   `json:"publicKey,omitempty"`
 	PreSharedKey    string   `json:"preSharedKey,omitempty"`
 	AllowedIPs      []string `json:"allowedIPs,omitempty"`
-	KeepAlive       int64    `json:"keepAlive,omitempty"`
+	KeepAlive       *int64   `json:"keepAlive,omitempty"`
 	ForwardedPorts  string   `json:"forwardedPorts,omitempty"`
 }
 

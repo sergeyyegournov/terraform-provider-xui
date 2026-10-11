@@ -55,9 +55,9 @@ func TestClientAPIGetAddUpdateDelete(t *testing.T) {
 			t.Fatalf("decode add: %v", err)
 		}
 		store[req.Client.Email] = PanelClientRecord{
-			UUID:   req.Client.ID,
-			Email:  req.Client.Email,
-			Enable: req.Client.Enable,
+			UUID:    req.Client.ID,
+			Email:   req.Client.Email,
+			Enable:  req.Client.Enable,
 			LimitIP: req.Client.LimitIP,
 		}
 		attachments[req.Client.Email] = req.InboundIDs
@@ -137,5 +137,24 @@ func TestClientAPIGetAddUpdateDelete(t *testing.T) {
 	}
 	if _, err := c.GetClientByEmail("new@example.com"); err == nil {
 		t.Fatal("expected error after delete")
+	}
+}
+
+func TestPanelClientInputKeepAliveZeroIsSent(t *testing.T) {
+	t.Parallel()
+	zero := int64(0)
+	raw, err := json.Marshal(PanelClientInput{Email: "a@example.com", KeepAlive: &zero})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"keepAlive":0`) {
+		t.Fatalf("expected explicit zero keepAlive, got %s", raw)
+	}
+	raw, err = json.Marshal(PanelClientInput{Email: "a@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "keepAlive") {
+		t.Fatalf("expected omitted keepAlive, got %s", raw)
 	}
 }

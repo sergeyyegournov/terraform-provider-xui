@@ -23,6 +23,7 @@ import (
 
 var _ resource.Resource = (*vlessClientResource)(nil)
 var _ resource.ResourceWithImportState = (*vlessClientResource)(nil)
+var _ resource.ResourceWithValidateConfig = (*vlessClientResource)(nil)
 
 type vlessClientResource struct {
 	client *xui.Client
@@ -45,6 +46,8 @@ type vlessClientModel struct {
 	Reset           types.Int64  `tfsdk:"reset"`
 	ResetDay        types.Int64  `tfsdk:"reset_day"`
 	ResetMax        types.Int64  `tfsdk:"reset_max"`
+	ResetWeekday    types.Int64  `tfsdk:"reset_weekday"`
+	Group           types.String `tfsdk:"group"`
 	TrafficReset    types.String `tfsdk:"traffic_reset"`
 	TrafficResetDay types.Int64  `tfsdk:"traffic_reset_day"`
 }
@@ -55,6 +58,10 @@ func NewVLESSClientResource() resource.Resource {
 
 func (r *vlessClientResource) Metadata(_ context.Context, _ resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = "xui_vless_client"
+}
+
+func (r *vlessClientResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	validateClientRenewalConfig(ctx, req.Config, &resp.Diagnostics)
 }
 
 func (r *vlessClientResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -142,16 +149,28 @@ func (r *vlessClientResource) Schema(_ context.Context, _ resource.SchemaRequest
 				Default:  stringdefault.StaticString(""),
 			},
 			"reset": schema.Int64Attribute{
-				MarkdownDescription: "Rolling auto-renew interval in days (`reset`). Ignored when `reset_day` is set.",
+				MarkdownDescription: "Rolling auto-renew interval in days (`reset`). Cannot be combined with `reset_weekday`. The panel ignores it when `reset_day` is set.",
 				Optional:            true,
 				Computed:            true,
 				Default:             int64default.StaticInt64(0),
 			},
 			"reset_day": schema.Int64Attribute{
-				MarkdownDescription: "Calendar renewal day of month 1–31 (`resetDay`). `0` keeps rolling `reset` mode.",
+				MarkdownDescription: "Calendar renewal day of month 1–31 (`resetDay`). `0` disables monthly renewal. Cannot be combined with `reset_weekday`.",
 				Optional:            true,
 				Computed:            true,
 				Default:             int64default.StaticInt64(0),
+			},
+			"reset_weekday": schema.Int64Attribute{
+				MarkdownDescription: "Calendar renewal weekday 1–7, Monday–Sunday (`resetWeekday`). `0` disables weekly renewal. Cannot be combined with `reset` or `reset_day`.",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(0),
+			},
+			"group": schema.StringAttribute{
+				MarkdownDescription: "Client group label (`group`). Empty means the client is not in a group.",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
 			},
 			"reset_max": schema.Int64Attribute{
 				MarkdownDescription: "Maximum number of auto-renewals (`resetMax`; 0 = unlimited).",
@@ -191,7 +210,7 @@ func (m vlessClientModel) toPanelPlan(id string) panelClientPlan {
 	return panelClientPlan{
 		Email: m.Email.ValueString(), Enable: m.Enable, LimitIP: m.LimitIP, LimitHwid: m.LimitHwid,
 		TotalGB: m.TotalGB, ExpiryTime: m.ExpiryTime, TgID: m.TgID, Reset: m.Reset,
-		ResetDay: m.ResetDay, ResetMax: m.ResetMax, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
+		ResetDay: m.ResetDay, ResetWeekday: m.ResetWeekday, ResetMax: m.ResetMax, Group: m.Group, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
 		Flow: m.Flow, SubID: m.SubID, Comment: m.Comment, ID: id,
 	}
 }
@@ -251,7 +270,7 @@ func (r *vlessClientResource) Read(ctx context.Context, req resource.ReadRequest
 	state.ID = types.StringValue(uid)
 	state.UUID = types.StringValue(uid)
 	state.Flow = types.StringValue(rec.Flow)
-	applyCommonClientFields(&state.Enable, &state.LimitIP, &state.LimitHwid, &state.TotalGB, &state.ExpiryTime, &state.TgID, &state.Reset, &state.ResetDay, &state.ResetMax, &state.TrafficResetDay, &state.TrafficReset, &state.SubID, &state.Comment, *rec)
+	applyCommonClientFields(&state.Enable, &state.LimitIP, &state.LimitHwid, &state.TotalGB, &state.ExpiryTime, &state.TgID, &state.Reset, &state.ResetDay, &state.ResetMax, &state.ResetWeekday, &state.TrafficResetDay, &state.TrafficReset, &state.SubID, &state.Comment, &state.Group, *rec)
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 }
 
@@ -290,6 +309,8 @@ func (r *vlessClientResource) Update(ctx context.Context, req resource.UpdateReq
 	state.Reset = plan.Reset
 	state.ResetDay = plan.ResetDay
 	state.ResetMax = plan.ResetMax
+	state.ResetWeekday = plan.ResetWeekday
+	state.Group = plan.Group
 	state.TrafficReset = plan.TrafficReset
 	state.TrafficResetDay = plan.TrafficResetDay
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)

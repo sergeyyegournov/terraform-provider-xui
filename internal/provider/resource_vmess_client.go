@@ -18,6 +18,7 @@ import (
 
 var _ resource.Resource = (*vmessClientResource)(nil)
 var _ resource.ResourceWithImportState = (*vmessClientResource)(nil)
+var _ resource.ResourceWithValidateConfig = (*vmessClientResource)(nil)
 
 type vmessClientResource struct {
 	client *xui.Client
@@ -41,6 +42,8 @@ type vmessClientModel struct {
 	Reset           types.Int64  `tfsdk:"reset"`
 	ResetDay        types.Int64  `tfsdk:"reset_day"`
 	ResetMax        types.Int64  `tfsdk:"reset_max"`
+	ResetWeekday    types.Int64  `tfsdk:"reset_weekday"`
+	Group           types.String `tfsdk:"group"`
 	TrafficReset    types.String `tfsdk:"traffic_reset"`
 	TrafficResetDay types.Int64  `tfsdk:"traffic_reset_day"`
 }
@@ -51,6 +54,10 @@ func NewVMessClientResource() resource.Resource {
 
 func (r *vmessClientResource) Metadata(_ context.Context, _ resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = "xui_vmess_client"
+}
+
+func (r *vmessClientResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	validateClientRenewalConfig(ctx, req.Config, &resp.Diagnostics)
 }
 
 func (r *vmessClientResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -97,7 +104,7 @@ func (m vmessClientModel) toPanelPlan(id, security string) panelClientPlan {
 	return panelClientPlan{
 		Email: m.Email.ValueString(), Enable: m.Enable, LimitIP: m.LimitIP, LimitHwid: m.LimitHwid,
 		TotalGB: m.TotalGB, ExpiryTime: m.ExpiryTime, TgID: m.TgID, Reset: m.Reset,
-		ResetDay: m.ResetDay, ResetMax: m.ResetMax, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
+		ResetDay: m.ResetDay, ResetWeekday: m.ResetWeekday, ResetMax: m.ResetMax, Group: m.Group, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
 		Flow: m.Flow, SubID: m.SubID, Comment: m.Comment, ID: id, Security: security,
 	}
 }
@@ -192,6 +199,8 @@ func (r *vmessClientResource) Update(ctx context.Context, req resource.UpdateReq
 	state.Reset = plan.Reset
 	state.ResetDay = plan.ResetDay
 	state.ResetMax = plan.ResetMax
+	state.ResetWeekday = plan.ResetWeekday
+	state.Group = plan.Group
 	state.TrafficReset = plan.TrafficReset
 	state.TrafficResetDay = plan.TrafficResetDay
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
@@ -231,5 +240,5 @@ func applyVMessRecord(m *vmessClientModel, rec xui.PanelClientRecord) {
 	applyVMessClientSecretsFromRecord(m, rec)
 	m.Security = types.StringValue(rec.Security)
 	m.Flow = types.StringValue(rec.Flow)
-	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.LimitHwid, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.ResetDay, &m.ResetMax, &m.TrafficResetDay, &m.TrafficReset, &m.SubID, &m.Comment, rec)
+	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.LimitHwid, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.ResetDay, &m.ResetMax, &m.ResetWeekday, &m.TrafficResetDay, &m.TrafficReset, &m.SubID, &m.Comment, &m.Group, rec)
 }

@@ -20,9 +20,11 @@ type panelClientPlan struct {
 	TgID            types.Int64
 	Reset           types.Int64
 	ResetDay        types.Int64
+	ResetWeekday    types.Int64
 	ResetMax        types.Int64
 	TrafficReset    types.String
 	TrafficResetDay types.Int64
+	Group           types.String
 	Flow            types.String
 	SubID           types.String
 	Comment         types.String
@@ -49,8 +51,10 @@ func planToPanelClientInput(p panelClientPlan) xui.PanelClientInput {
 		TgID:            p.TgID.ValueInt64(),
 		Reset:           p.Reset.ValueInt64(),
 		ResetDay:        p.ResetDay.ValueInt64(),
+		ResetWeekday:    p.ResetWeekday.ValueInt64(),
 		ResetMax:        p.ResetMax.ValueInt64(),
 		TrafficResetDay: p.TrafficResetDay.ValueInt64(),
+		Group:           p.Group.ValueString(),
 	}
 	if !p.TrafficReset.IsNull() && p.TrafficReset.ValueString() != "" {
 		c.TrafficReset = p.TrafficReset.ValueString()
@@ -88,8 +92,9 @@ func planToPanelClientInput(p panelClientPlan) xui.PanelClientInput {
 	if len(p.AllowedIPs) > 0 {
 		c.AllowedIPs = p.AllowedIPs
 	}
-	if !p.KeepAlive.IsNull() {
-		c.KeepAlive = p.KeepAlive.ValueInt64()
+	if !p.KeepAlive.IsNull() && !p.KeepAlive.IsUnknown() {
+		v := p.KeepAlive.ValueInt64()
+		c.KeepAlive = &v
 	}
 	if p.ForwardedPorts != "" {
 		c.ForwardedPorts = p.ForwardedPorts
@@ -137,8 +142,8 @@ func createPanelClient(cli *xui.Client, email string, inboundID int, input xui.P
 
 func applyCommonClientFields(
 	enable *types.Bool,
-	limitIP, limitHwid, totalGB, expiry, tgID, reset, resetDay, resetMax, trafficResetDay *types.Int64,
-	trafficReset, subID, comment *types.String,
+	limitIP, limitHwid, totalGB, expiry, tgID, reset, resetDay, resetMax, resetWeekday, trafficResetDay *types.Int64,
+	trafficReset, subID, comment, group *types.String,
 	rec xui.PanelClientRecord,
 ) {
 	*enable = types.BoolValue(rec.Enable)
@@ -149,8 +154,10 @@ func applyCommonClientFields(
 	*tgID = types.Int64Value(rec.TgID)
 	*subID = types.StringValue(rec.SubID)
 	*comment = types.StringValue(rec.Comment)
+	*group = types.StringValue(rec.Group)
 	*reset = types.Int64Value(rec.Reset)
 	*resetDay = types.Int64Value(rec.ResetDay)
+	*resetWeekday = types.Int64Value(rec.ResetWeekday)
 	*resetMax = types.Int64Value(rec.ResetMax)
 	tr := rec.TrafficReset
 	if tr == "" {

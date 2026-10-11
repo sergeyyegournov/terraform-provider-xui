@@ -35,4 +35,11 @@ func TestInboundUserManagedFieldsChanged(t *testing.T) {
 	if !inboundUserManagedFieldsChanged(changed, base) {
 		t.Fatalf("expected change when user-managed field differs")
 	}
+
+	sub := base
+	sub.ExcludeFromSub = types.BoolValue(true)
+	sub.SubSortIndex = types.Int64Value(-2)
+	if !inboundUserManagedFieldsChanged(sub, base) {
+		t.Fatalf("expected change when subscription fields differ")
+	}
 }

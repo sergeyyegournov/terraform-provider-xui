@@ -3,12 +3,12 @@
 page_title: "xui_panel_settings Resource - xui"
 subcategory: ""
 description: |-
-  Manages 3x-ui panel settings (/panel/api/setting/update). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults. Set restart_panel to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). Attributes mirror the panel's AllSetting model (Telegram, SMTP, LDAP, subscription, etc.).
+  Manages 3x-ui panel settings (/panel/api/setting/update). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults, except sub_profile_mode, which is left unset so an existing panel value is kept. Set restart_panel to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). Attributes mirror the panel's AllSetting model (Telegram, SMTP, LDAP, subscription, Discord, Happ, etc.).
 ---
 
 # xui_panel_settings (Resource)
 
-Manages 3x-ui panel settings (`/panel/api/setting/update`). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults. Set `restart_panel` to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). Attributes mirror the panel's `AllSetting` model (Telegram, SMTP, LDAP, subscription, etc.).
+Manages 3x-ui panel settings (`/panel/api/setting/update`). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults, except `sub_profile_mode`, which is left unset so an existing panel value is kept. Set `restart_panel` to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). Attributes mirror the panel's `AllSetting` model (Telegram, SMTP, LDAP, subscription, Discord, Happ, etc.).
 
 ## Example Usage
 
@@ -51,9 +51,21 @@ resource "xui_panel_settings" "this" {
 ### Optional
 
 - `datepicker` (String) Date picker format.
+- `discord_admin_ids` (String) Comma-separated Discord admin user ids (`discordAdminIds`).
+- `discord_bot_backup` (Boolean) Send panel backups to Discord (`discordBotBackup`).
+- `discord_bot_enable` (Boolean) Enable the Discord bot (`discordBotEnable`).
+- `discord_bot_token` (String, Sensitive) Discord bot token (`discordBotToken`).
+- `discord_channel_id` (String) Discord channel id for bot messages (`discordChannelId`).
+- `discord_cpu` (Number) CPU percent that triggers a Discord alert (`discordCpu`).
+- `discord_enabled_events` (String) Comma-separated Discord notification events (`discordEnabledEvents`).
+- `discord_lang` (String) Discord bot language (`discordLang`).
+- `discord_memory` (Number) Memory percent that triggers a Discord alert (`discordMemory`).
+- `discord_run_time` (String) Cron schedule for Discord bot jobs (`discordRunTime`).
 - `expire_diff` (Number) Expiration warning threshold in days.
+- `external_sub_user_agent` (String) User-Agent sent when the panel fetches an external subscription (`externalSubUserAgent`).
 - `external_traffic_inform_enable` (Boolean) Enable external traffic reporting.
 - `external_traffic_inform_uri` (String) URI for external traffic reporting.
+- `happ_link_enable` (Boolean) Include Happ deep links in subscription output (`happLinkEnable`).
 - `ip_limit_allowlist` (String) Comma-separated IPs/CIDRs exempt from per-client IP limiting (`ipLimitAllowlist`).
 - `ldap_auto_create` (Boolean) Automatically create clients from LDAP.
 - `ldap_auto_delete` (Boolean) Automatically delete clients removed from LDAP.
@@ -79,9 +91,10 @@ resource "xui_panel_settings" "this" {
 - `outbound_down_threshold` (Number) Consecutive failed observatory probes before an outbound.down event fires.
 - `page_size` (Number) Number of items per page in lists.
 - `panel_proxy` (String) Proxy URL used by the panel for outbound requests (`panelOutbound`).
+- `reality_scan_candidates` (String) Comma-separated REALITY scan targets (`realityScanCandidates`).
 - `remark_model` (String) Remark template for inbounds (`remarkTemplate`).
 - `restart_panel` (Boolean) If true, restart the panel after applying settings changes. Required for web listen/port/cert changes to take effect.
-- `restart_xray_on_client_disable` (Boolean) Restart Xray when clients are auto-disabled by expiry/traffic limits.
+- `restart_xray_on_client_disable` (Boolean) Restart Xray when a client is disabled or deleted, including expiry and quota. Since 3x-ui v3.8.5 this also covers a manual disable or delete.
 - `session_max_age` (Number) Session maximum age in minutes.
 - `smtp_cpu` (Number) CPU usage threshold percentage for SMTP alerts.
 - `smtp_enable` (Boolean) Enable SMTP email notifications.
@@ -96,6 +109,7 @@ resource "xui_panel_settings" "this" {
 - `smtp_to` (String) SMTP recipient address(es).
 - `smtp_username` (String) SMTP username.
 - `sub_announce` (String) Subscription announcement.
+- `sub_calendar_expire_inclusive` (Boolean) Treat the expiry calendar day as still valid (`subCalendarExpireInclusive`).
 - `sub_cert_file` (String) SSL certificate file for subscription server.
 - `sub_clash_auto_detect` (Boolean) Auto-detect clients that should receive Clash/Mihomo subscriptions.
 - `sub_clash_enable` (Boolean) Enable Clash/Mihomo subscription endpoint.
@@ -108,16 +122,72 @@ resource "xui_panel_settings" "this" {
 - `sub_enable` (Boolean) Enable subscription server.
 - `sub_enable_routing` (Boolean) Enable routing for subscription.
 - `sub_encrypt` (Boolean) Encrypt subscription responses.
+- `sub_expired_template` (String) Remark template used after a client expires (`subExpiredTemplate`).
+- `sub_happ_always_hwid` (Boolean) Always require a Happ hardware id (`subHappAlwaysHwid`).
+- `sub_happ_auto_connect` (Boolean) Enable Happ auto-connect (`subHappAutoConnect`).
+- `sub_happ_auto_connect_type` (String) Happ auto-connect strategy (`subHappAutoConnectType`).
+- `sub_happ_auto_detect` (Boolean) Auto-detect Happ clients from the subscription User-Agent (`subHappAutoDetect`).
+- `sub_happ_color_profile` (String) Happ color profile (`subHappColorProfile`).
+- `sub_happ_exclude_apns` (Boolean) Exclude Apple push routes from Happ (`subHappExcludeApns`).
+- `sub_happ_exclude_routes` (String) Happ excluded routes (`subHappExcludeRoutes`).
+- `sub_happ_fallback_url` (String) Happ fallback URL (`subHappFallbackUrl`).
+- `sub_happ_local_proxy_auth` (String) Happ local proxy authentication (`subHappLocalProxyAuth`).
+- `sub_happ_new_url` (String) Happ new-subscription URL (`subHappNewUrl`).
+- `sub_happ_no_limit` (Boolean) Disable Happ subscription limits (`subHappNoLimit`).
+- `sub_happ_notification_expire` (Boolean) Send Happ expiry notifications (`subHappNotificationExpire`).
+- `sub_happ_per_app_list` (String) Happ per-app package list (`subHappPerAppList`).
+- `sub_happ_per_app_mode` (String) Happ per-app proxy mode (`subHappPerAppMode`).
+- `sub_happ_ping_type` (String) Happ ping type (`subHappPingType`).
+- `sub_happ_provider_id` (String) Happ provider id (`subHappProviderId`).
+- `sub_happ_sub_expire` (Boolean) Show Happ expiry information (`subHappSubExpire`).
+- `sub_happ_sub_expire_button_link` (String) Happ expiry button link (`subHappSubExpireButtonLink`).
+- `sub_happ_sub_info_button_link` (String) Happ subscription info button link (`subHappSubInfoButtonLink`).
+- `sub_happ_sub_info_button_text` (String) Happ subscription info button text (`subHappSubInfoButtonText`).
+- `sub_happ_sub_info_color` (String) Happ subscription info color (`subHappSubInfoColor`).
+- `sub_happ_sub_info_text` (String) Happ subscription info text (`subHappSubInfoText`).
+- `sub_happ_tun_mode` (String) Happ TUN mode (`subHappTunMode`).
+- `sub_happ_tun_type` (String) Happ TUN type (`subHappTunType`).
 - `sub_hide_settings` (Boolean) Hide settings section in subscription pages.
+- `sub_incy_announce_url` (String) Incy announcement URL (`subIncyAnnounceUrl`).
+- `sub_incy_app_auto_detect` (Boolean) Auto-detect Incy clients from the subscription User-Agent (`subIncyAppAutoDetect`).
+- `sub_incy_banner_bg_color` (String) Incy banner background color (`subIncyBannerBgColor`).
+- `sub_incy_banner_button_color` (String) Incy banner button color (`subIncyBannerButtonColor`).
+- `sub_incy_banner_button_text` (String) Incy banner button text (`subIncyBannerButtonText`).
+- `sub_incy_banner_button_url` (String) Incy banner button URL (`subIncyBannerButtonUrl`).
+- `sub_incy_banner_text` (String) Incy banner text (`subIncyBannerText`).
 - `sub_incy_enable_routing` (Boolean) Enable Incy routing for subscription.
+- `sub_incy_fragment_interval` (String) Incy fragment interval (`subIncyFragmentInterval`).
+- `sub_incy_fragment_length` (String) Incy fragment length (`subIncyFragmentLength`).
+- `sub_incy_fragment_packets` (String) Incy fragment packets (`subIncyFragmentPackets`).
+- `sub_incy_fragmentation_enable` (String) Incy fragmentation enable flag (`subIncyFragmentationEnable`).
+- `sub_incy_hide_check` (String) Incy hide-check flag (`subIncyHideCheck`).
+- `sub_incy_hide_url` (String) Incy hide-url flag (`subIncyHideUrl`).
+- `sub_incy_no_limit_enabled` (String) Incy no-limit flag (`subIncyNoLimitEnabled`).
+- `sub_incy_noises_delay` (String) Incy noises delay (`subIncyNoisesDelay`).
+- `sub_incy_noises_enable` (String) Incy noises enable flag (`subIncyNoisesEnable`).
+- `sub_incy_noises_packet` (String) Incy noises packet (`subIncyNoisesPacket`).
+- `sub_incy_noises_type` (String) Incy noises type (`subIncyNoisesType`).
+- `sub_incy_per_app_enable` (String) Incy per-app enable flag (`subIncyPerAppEnable`).
+- `sub_incy_per_app_list` (String) Incy per-app list (`subIncyPerAppList`).
+- `sub_incy_per_app_mode` (String) Incy per-app mode (`subIncyPerAppMode`).
+- `sub_incy_premium_url` (String) Incy premium URL (`subIncyPremiumUrl`).
+- `sub_incy_profile_description` (String) Incy profile description (`subIncyProfileDescription`).
+- `sub_incy_resolve_dns_domain` (String) Incy resolve DNS domain (`subIncyResolveDnsDomain`).
+- `sub_incy_resolve_dns_ip` (String) Incy resolve DNS IP (`subIncyResolveDnsIp`).
+- `sub_incy_resolve_enable` (String) Incy DNS resolve enable flag (`subIncyResolveEnable`).
 - `sub_incy_routing_rules` (String) Incy routing rules (plain text).
+- `sub_incy_sort_order` (String) Incy profile sort order (`subIncySortOrder`).
+- `sub_incy_support_email` (String) Incy support email (`subIncySupportEmail`).
+- `sub_info_node_enable` (Boolean) Include node information in subscription user info (`subInfoNodeEnable`).
 - `sub_json_always_array` (Boolean) Always return JSON subscriptions as an array.
 - `sub_json_auto_detect` (Boolean) Auto-detect clients that should receive JSON subscriptions.
+- `sub_json_dns` (String) DNS object merged into JSON subscriptions (`subJsonDns`). Accepts empty/null (unset). Semantic JSON equality avoids whitespace and key-order drift.
 - `sub_json_enable` (Boolean) Enable JSON subscription endpoint.
 - `sub_json_final_mask` (String) JSON subscription FinalMask configuration. Accepts empty/null (unset). Semantic JSON equality avoids whitespace and key-order drift.
 - `sub_json_mux` (String) JSON subscription mux configuration. Accepts empty/null (unset). Semantic JSON equality avoids whitespace and key-order drift.
 - `sub_json_observatory` (String) JSON subscription observatory configuration (`subJsonObservatory`).
 - `sub_json_path` (String) Path for JSON subscription endpoint.
+- `sub_json_routing_rules` (String) Remote routing source for JSON subscriptions (`subJsonRoutingRules`). A URL or empty, not a JSON object.
 - `sub_json_rules` (String) JSON subscription routing rules. Accepts empty/null (unset). Semantic JSON equality avoids whitespace and key-order drift.
 - `sub_json_uri` (String) JSON subscription server URI.
 - `sub_json_user_agent_regex` (String) User-Agent regex for JSON subscription auto-detect.
@@ -125,12 +195,14 @@ resource "xui_panel_settings" "this" {
 - `sub_listen` (String) Subscription server listen IP.
 - `sub_path` (String) Base path for subscription URLs.
 - `sub_port` (Number) Subscription server port.
+- `sub_profile_mode` (String) Subscription profile page mode (`subProfileMode`): `none`, `builtin`, or `custom`. Omit this attribute to keep the value stored on the panel. An upgraded panel that already has a profile URL is `custom`; a factory install is `none`. Setting `none` keeps a stored URL but stops sending it.
 - `sub_profile_url` (String) Subscription profile URL.
 - `sub_routing_rules` (String) Subscription global routing rules (plain text, not JSON).
 - `sub_show_identity_on_all_links` (Boolean) Include identity tokens on every subscription link (`subShowIdentityOnAllLinks`).
 - `sub_support_url` (String) Subscription support URL.
 - `sub_theme_dir` (String) Directory for custom subscription theme assets.
 - `sub_title` (String) Subscription title.
+- `sub_traffic_depleted_template` (String) Remark template used after a client uses its traffic (`subTrafficDepletedTemplate`).
 - `sub_updates` (Number) Subscription update interval in minutes.
 - `sub_uri` (String) Subscription server URI.
 - `tg_bot_api_server` (String) Custom API server for Telegram bot.

@@ -98,6 +98,18 @@ func (r *inboundResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Computed:            true,
 				Default:             booldefault.StaticBool(false),
 			},
+			"exclude_from_sub": schema.BoolAttribute{
+				MarkdownDescription: "When true, omit this inbound from subscription output while it keeps serving (`excludeFromSub`).",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
+			"sub_sort_index": schema.Int64Attribute{
+				MarkdownDescription: "Sort order of this inbound's links in subscription output (`subSortIndex`). Lower comes first; negatives are allowed. `0` is stored as `1`.",
+				Optional:            true,
+				Computed:            true,
+				Default:             int64default.StaticInt64(1),
+			},
 			"total": schema.Int64Attribute{
 				MarkdownDescription: "Total traffic limit for the inbound in bytes (0 = unlimited); export `total`.",
 				Optional:            true,
@@ -171,6 +183,8 @@ type inboundModel struct {
 	TrafficReset    types.String         `tfsdk:"traffic_reset"`
 	TrafficResetDay types.Int64          `tfsdk:"traffic_reset_day"`
 	DisableFlow     types.Bool           `tfsdk:"disable_flow"`
+	ExcludeFromSub  types.Bool           `tfsdk:"exclude_from_sub"`
+	SubSortIndex    types.Int64          `tfsdk:"sub_sort_index"`
 	Total           types.Int64          `tfsdk:"total"`
 	Settings        types.String         `tfsdk:"settings"`
 	StreamSettings  jsontypes.Normalized `tfsdk:"stream_settings"`
@@ -211,10 +225,13 @@ func (r *inboundResource) Create(ctx context.Context, req resource.CreateRequest
 		"trafficReset":    plan.TrafficReset.ValueString(),
 		"trafficResetDay": plan.TrafficResetDay.ValueInt64(),
 		"disableFlow":     plan.DisableFlow.ValueBool(),
+		"excludeFromSub":  plan.ExcludeFromSub.ValueBool(),
+		"subSortIndex":    normalizeSubSortIndex(plan.SubSortIndex.ValueInt64()),
 		"total":           plan.Total.ValueInt64(),
 		"up":              0,
 		"down":            0,
 	}
+	plan.SubSortIndex = types.Int64Value(normalizeSubSortIndex(plan.SubSortIndex.ValueInt64()))
 	raw, err := r.client.AddInbound(payload)
 	if err != nil {
 		resp.Diagnostics.AddError("API error", err.Error())
@@ -288,10 +305,12 @@ func (r *inboundResource) Read(ctx context.Context, req resource.ReadRequest, re
 	}
 	state.TrafficResetDay = types.Int64Value(int64(trDay))
 	state.DisableFlow = types.BoolValue(boolFromMap(m, "disableFlow"))
+	state.ExcludeFromSub = types.BoolValue(boolFromMap(m, "excludeFromSub"))
+	state.SubSortIndex = types.Int64Value(subSortIndexFromMap(m))
 	state.Total = types.Int64Value(int64FromMap(m, "total"))
 	state.Settings = types.StringValue(canonicalizeInboundSettings(jsonStringFromMap(m, "settings")))
-	state.StreamSettings = jsontypes.NewNormalizedValue(jsonStringFromMap(m, "streamSettings"))
-	state.Sniffing = jsontypes.NewNormalizedValue(jsonStringFromMap(m, "sniffing"))
+	state.StreamSettings = jsontypes.NewNormalizedValue(panelJSONObject(jsonStringFromMap(m, "streamSettings")))
+	state.Sniffing = jsontypes.NewNormalizedValue(panelJSONObject(jsonStringFromMap(m, "sniffing")))
 	state.Tag = types.StringValue(stringFromMap(m, "tag"))
 	status, err := r.client.GetStatusPublicIP()
 	if err != nil {
@@ -341,8 +360,8 @@ func (r *inboundResource) Update(ctx context.Context, req resource.UpdateRequest
 	if !inboundUserManagedFieldsChanged(plan, state) {
 		state.Tag = types.StringValue(stringFromMap(cur, "tag"))
 		state.Settings = types.StringValue(canonicalizeInboundSettings(jsonStringFromMap(cur, "settings")))
-		state.StreamSettings = jsontypes.NewNormalizedValue(jsonStringFromMap(cur, "streamSettings"))
-		state.Sniffing = jsontypes.NewNormalizedValue(jsonStringFromMap(cur, "sniffing"))
+		state.StreamSettings = jsontypes.NewNormalizedValue(panelJSONObject(jsonStringFromMap(cur, "streamSettings")))
+		state.Sniffing = jsontypes.NewNormalizedValue(panelJSONObject(jsonStringFromMap(cur, "sniffing")))
 		status, err := r.client.GetStatusPublicIP()
 		if err != nil {
 			resp.Diagnostics.AddError("API error", err.Error())
@@ -373,6 +392,8 @@ func (r *inboundResource) Update(ctx context.Context, req resource.UpdateRequest
 		"trafficReset":    plan.TrafficReset.ValueString(),
 		"trafficResetDay": plan.TrafficResetDay.ValueInt64(),
 		"disableFlow":     plan.DisableFlow.ValueBool(),
+		"excludeFromSub":  plan.ExcludeFromSub.ValueBool(),
+		"subSortIndex":    normalizeSubSortIndex(plan.SubSortIndex.ValueInt64()),
 		"total":           plan.Total.ValueInt64(),
 		"up":              int64FromMap(cur, "up"),
 		"down":            int64FromMap(cur, "down"),
@@ -381,6 +402,13 @@ func (r *inboundResource) Update(ctx context.Context, req resource.UpdateRequest
 	if _, err := r.client.UpdateInbound(int(state.ID.ValueInt64()), payload); err != nil {
 		resp.Diagnostics.AddError("API error", err.Error())
 		return
+	}
+	// v3.9 ignores enable on /inbounds/update. Apply it on the dedicated endpoint.
+	if plan.Enable.ValueBool() != boolFromMap(cur, "enable") {
+		if err := r.client.SetInboundEnable(int(state.ID.ValueInt64()), plan.Enable.ValueBool()); err != nil {
+			resp.Diagnostics.AddError("API error", err.Error())
+			return
+		}
 	}
 	state.Protocol = plan.Protocol
 	state.Remark = plan.Remark
@@ -391,6 +419,8 @@ func (r *inboundResource) Update(ctx context.Context, req resource.UpdateRequest
 	state.TrafficReset = plan.TrafficReset
 	state.TrafficResetDay = plan.TrafficResetDay
 	state.DisableFlow = plan.DisableFlow
+	state.ExcludeFromSub = plan.ExcludeFromSub
+	state.SubSortIndex = types.Int64Value(normalizeSubSortIndex(plan.SubSortIndex.ValueInt64()))
 	state.Total = plan.Total
 	state.Settings = types.StringValue(canonicalizeInboundSettings(settingsMerged))
 	state.StreamSettings = plan.StreamSettings
@@ -398,9 +428,12 @@ func (r *inboundResource) Update(ctx context.Context, req resource.UpdateRequest
 	if rawAfter, err := r.client.GetInbound(int(state.ID.ValueInt64())); err == nil {
 		if m, err := inboundMapFromJSON(rawAfter); err == nil {
 			state.Tag = types.StringValue(stringFromMap(m, "tag"))
+			state.Enable = types.BoolValue(boolFromMap(m, "enable"))
+			state.ExcludeFromSub = types.BoolValue(boolFromMap(m, "excludeFromSub"))
+			state.SubSortIndex = types.Int64Value(subSortIndexFromMap(m))
 			state.Settings = types.StringValue(canonicalizeInboundSettings(jsonStringFromMap(m, "settings")))
-			state.StreamSettings = jsontypes.NewNormalizedValue(jsonStringFromMap(m, "streamSettings"))
-			state.Sniffing = jsontypes.NewNormalizedValue(jsonStringFromMap(m, "sniffing"))
+			state.StreamSettings = jsontypes.NewNormalizedValue(panelJSONObject(jsonStringFromMap(m, "streamSettings")))
+			state.Sniffing = jsontypes.NewNormalizedValue(panelJSONObject(jsonStringFromMap(m, "sniffing")))
 		}
 	}
 	status, err := r.client.GetStatusPublicIP()
@@ -439,6 +472,12 @@ func inboundUserManagedFieldsChanged(plan, state inboundModel) bool {
 		return true
 	}
 	if plan.DisableFlow.ValueBool() != state.DisableFlow.ValueBool() {
+		return true
+	}
+	if plan.ExcludeFromSub.ValueBool() != state.ExcludeFromSub.ValueBool() {
+		return true
+	}
+	if normalizeSubSortIndex(plan.SubSortIndex.ValueInt64()) != normalizeSubSortIndex(state.SubSortIndex.ValueInt64()) {
 		return true
 	}
 	if plan.Total.ValueInt64() != state.Total.ValueInt64() {

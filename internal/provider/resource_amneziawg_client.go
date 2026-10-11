@@ -20,6 +20,7 @@ import (
 
 var _ resource.Resource = (*amneziawgClientResource)(nil)
 var _ resource.ResourceWithImportState = (*amneziawgClientResource)(nil)
+var _ resource.ResourceWithValidateConfig = (*amneziawgClientResource)(nil)
 
 type amneziawgClientResource struct {
 	client *xui.Client
@@ -46,6 +47,8 @@ type amneziawgClientModel struct {
 	Reset           types.Int64  `tfsdk:"reset"`
 	ResetDay        types.Int64  `tfsdk:"reset_day"`
 	ResetMax        types.Int64  `tfsdk:"reset_max"`
+	ResetWeekday    types.Int64  `tfsdk:"reset_weekday"`
+	Group           types.String `tfsdk:"group"`
 	TrafficReset    types.String `tfsdk:"traffic_reset"`
 	TrafficResetDay types.Int64  `tfsdk:"traffic_reset_day"`
 }
@@ -56,6 +59,10 @@ func NewAmneziaWGClientResource() resource.Resource {
 
 func (r *amneziawgClientResource) Metadata(_ context.Context, _ resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = "xui_amneziawg_client"
+}
+
+func (r *amneziawgClientResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	validateClientRenewalConfig(ctx, req.Config, &resp.Diagnostics)
 }
 
 func (r *amneziawgClientResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -135,7 +142,7 @@ func (m amneziawgClientModel) toPanelPlan(ctx context.Context, priv, pub, psk, f
 	return panelClientPlan{
 		Email: m.Email.ValueString(), Enable: m.Enable, LimitIP: m.LimitIP, LimitHwid: m.LimitHwid,
 		TotalGB: m.TotalGB, ExpiryTime: m.ExpiryTime, TgID: m.TgID, Reset: m.Reset,
-		ResetDay: m.ResetDay, ResetMax: m.ResetMax, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
+		ResetDay: m.ResetDay, ResetWeekday: m.ResetWeekday, ResetMax: m.ResetMax, Group: m.Group, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
 		Flow: types.StringNull(), SubID: m.SubID, Comment: m.Comment,
 		PrivateKey: priv, PublicKey: pub, PreSharedKey: psk, AllowedIPs: allowed,
 		KeepAlive: m.KeepAlive, ForwardedPorts: forwarded,
@@ -229,6 +236,8 @@ func (r *amneziawgClientResource) Update(ctx context.Context, req resource.Updat
 	state.Reset = plan.Reset
 	state.ResetDay = plan.ResetDay
 	state.ResetMax = plan.ResetMax
+	state.ResetWeekday = plan.ResetWeekday
+	state.Group = plan.Group
 	state.TrafficReset = plan.TrafficReset
 	state.TrafficResetDay = plan.TrafficResetDay
 	state.KeepAlive = plan.KeepAlive
@@ -299,5 +308,5 @@ func applyAmneziaWGClientSecretsFromRecord(m *amneziawgClientModel, rec xui.Pane
 
 func applyAmneziaWGRecord(m *amneziawgClientModel, rec xui.PanelClientRecord) {
 	applyAmneziaWGClientSecretsFromRecord(m, rec)
-	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.LimitHwid, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.ResetDay, &m.ResetMax, &m.TrafficResetDay, &m.TrafficReset, &m.SubID, &m.Comment, rec)
+	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.LimitHwid, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.ResetDay, &m.ResetMax, &m.ResetWeekday, &m.TrafficResetDay, &m.TrafficReset, &m.SubID, &m.Comment, &m.Group, rec)
 }

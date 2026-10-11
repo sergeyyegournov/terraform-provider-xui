@@ -16,6 +16,7 @@ import (
 
 var _ resource.Resource = (*shadowsocksClientResource)(nil)
 var _ resource.ResourceWithImportState = (*shadowsocksClientResource)(nil)
+var _ resource.ResourceWithValidateConfig = (*shadowsocksClientResource)(nil)
 
 type shadowsocksClientResource struct {
 	client *xui.Client
@@ -37,6 +38,8 @@ type shadowsocksClientModel struct {
 	Reset           types.Int64  `tfsdk:"reset"`
 	ResetDay        types.Int64  `tfsdk:"reset_day"`
 	ResetMax        types.Int64  `tfsdk:"reset_max"`
+	ResetWeekday    types.Int64  `tfsdk:"reset_weekday"`
+	Group           types.String `tfsdk:"group"`
 	TrafficReset    types.String `tfsdk:"traffic_reset"`
 	TrafficResetDay types.Int64  `tfsdk:"traffic_reset_day"`
 }
@@ -47,6 +50,10 @@ func NewShadowsocksClientResource() resource.Resource {
 
 func (r *shadowsocksClientResource) Metadata(_ context.Context, _ resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = "xui_shadowsocks_client"
+}
+
+func (r *shadowsocksClientResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	validateClientRenewalConfig(ctx, req.Config, &resp.Diagnostics)
 }
 
 func (r *shadowsocksClientResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -82,7 +89,7 @@ func (m shadowsocksClientModel) toPanelPlan(password string) panelClientPlan {
 	return panelClientPlan{
 		Email: m.Email.ValueString(), Enable: m.Enable, LimitIP: m.LimitIP, LimitHwid: m.LimitHwid,
 		TotalGB: m.TotalGB, ExpiryTime: m.ExpiryTime, TgID: m.TgID, Reset: m.Reset,
-		ResetDay: m.ResetDay, ResetMax: m.ResetMax, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
+		ResetDay: m.ResetDay, ResetWeekday: m.ResetWeekday, ResetMax: m.ResetMax, Group: m.Group, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
 		Flow: types.StringNull(), SubID: m.SubID, Comment: m.Comment, Password: password,
 	}
 }
@@ -165,6 +172,8 @@ func (r *shadowsocksClientResource) Update(ctx context.Context, req resource.Upd
 	state.Reset = plan.Reset
 	state.ResetDay = plan.ResetDay
 	state.ResetMax = plan.ResetMax
+	state.ResetWeekday = plan.ResetWeekday
+	state.Group = plan.Group
 	state.TrafficReset = plan.TrafficReset
 	state.TrafficResetDay = plan.TrafficResetDay
 	if !plan.Password.IsNull() && plan.Password.ValueString() != "" {
@@ -201,5 +210,5 @@ func applyShadowsocksClientSecretsFromRecord(m *shadowsocksClientModel, rec xui.
 
 func applyShadowsocksRecord(m *shadowsocksClientModel, rec xui.PanelClientRecord) {
 	applyShadowsocksClientSecretsFromRecord(m, rec)
-	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.LimitHwid, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.ResetDay, &m.ResetMax, &m.TrafficResetDay, &m.TrafficReset, &m.SubID, &m.Comment, rec)
+	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.LimitHwid, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.ResetDay, &m.ResetMax, &m.ResetWeekday, &m.TrafficResetDay, &m.TrafficReset, &m.SubID, &m.Comment, &m.Group, rec)
 }

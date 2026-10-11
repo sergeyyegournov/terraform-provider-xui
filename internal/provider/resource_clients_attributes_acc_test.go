@@ -33,7 +33,9 @@ func accClientCommonDefaultsChecks(resourceName string) resource.TestCheckFunc {
 		resource.TestCheckResourceAttr(resourceName, "tg_id", "0"),
 		resource.TestCheckResourceAttr(resourceName, "reset", "0"),
 		resource.TestCheckResourceAttr(resourceName, "reset_day", "0"),
+		resource.TestCheckResourceAttr(resourceName, "reset_weekday", "0"),
 		resource.TestCheckResourceAttr(resourceName, "reset_max", "0"),
+		resource.TestCheckResourceAttr(resourceName, "group", ""),
 		resource.TestCheckResourceAttr(resourceName, "traffic_reset", "never"),
 		resource.TestCheckResourceAttr(resourceName, "traffic_reset_day", "1"),
 		resource.TestCheckResourceAttr(resourceName, "comment", ""),
@@ -92,8 +94,6 @@ func TestAccVLESSClient_enableFalse(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: cfg,
-				// 3x-ui add may report enable=true on refresh even when false was sent.
-				ExpectNonEmptyPlan: true,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("xui_vless_client.test", "enable", "false"),
 					resource.TestCheckResourceAttr("xui_vless_client.test", "email", email),
