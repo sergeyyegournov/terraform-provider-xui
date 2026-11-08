@@ -45,6 +45,7 @@ resource "xui_hysteria_client" "example" {
 ### Optional
 
 - `auth` (String, Sensitive) Hysteria client auth password. If omitted, the panel generates one on create.
+- `client_host_rule_ids` (List of Number) Host rule IDs this client's subscriptions are bound to (`clientHostRuleIds`). Omit to leave the panel value unchanged; set to `[]` to clear. Hosts themselves are not managed by this provider yet.
 - `comment` (String)
 - `enable` (Boolean)
 - `expiry_time` (Number) Expiry in milliseconds since Unix epoch (0 = never).

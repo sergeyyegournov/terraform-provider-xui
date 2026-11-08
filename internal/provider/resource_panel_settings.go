@@ -713,6 +713,9 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 	for k, v := range panelSettingsV39Attributes() {
 		attrs[k] = v
 	}
+	for k, v := range panelSettingsV311Attributes() {
+		attrs[k] = v
+	}
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manages 3x-ui panel settings (`/panel/api/setting/update`). This is a singleton resource — only one instance should exist per panel. All attributes are optional and default to the panel's built-in defaults, except `sub_profile_mode`, which is left unset so an existing panel value is kept. Set `restart_panel` to true if you want to restart the panel after applying changes (required for web listen/port/cert changes to take effect). Attributes mirror the panel's `AllSetting` model (Telegram, SMTP, LDAP, subscription, Discord, Happ, etc.).",
 		Attributes:          attrs,
@@ -926,6 +929,11 @@ type panelSettingsModel struct {
 	SubIncyResolveDNSDomain    types.String `tfsdk:"sub_incy_resolve_dns_domain"`
 	SubIncyResolveDNSIP        types.String `tfsdk:"sub_incy_resolve_dns_ip"`
 
+	// 3.11 settings
+	SubHostSortMode   types.String `tfsdk:"sub_host_sort_mode"`
+	NodeDownThreshold types.Int64  `tfsdk:"node_down_threshold"`
+	SubClashRemoteDNS types.Bool   `tfsdk:"sub_clash_remote_dns"`
+
 	// Restart
 	RestartPanel types.Bool `tfsdk:"restart_panel"`
 }
@@ -1039,24 +1047,14 @@ func (r *panelSettingsResource) modelToPayload(m *panelSettingsModel) map[string
 		"warpUpdateInterval":          m.WarpUpdateInterval.ValueInt64(),
 	}
 	appendPanelSettingsV39(m, payload)
+	appendPanelSettingsV311(m, payload)
 	return payload
 }
 
-// panelSettingsOptionalKeys were added after 3x-ui v3.5.0. Older panels omit
-// them from /setting/all; keep prior Terraform state instead of zeroing.
-var panelSettingsOptionalKeys = map[string]struct{}{
-	"outboundDownThreshold":     {},
-	"smtpFrom":                  {},
-	"smtpFromName":              {},
-	"subJsonAutoDetect":         {},
-	"subJsonAlwaysArray":        {},
-	"subJsonUserAgentRegex":     {},
-	"subClashAutoDetect":        {},
-	"subClashUserAgentRegex":    {},
-	"subShowIdentityOnAllLinks": {},
-	"ipLimitAllowlist":          {},
-	"subJsonObservatory":        {},
-}
+// panelSettingsOptionalKeys are AllSetting fields that may be absent on a
+// panel still on 3x-ui v3.9 or v3.10. Keys present on every v3.9+ panel are
+// not listed: this provider requires v3.9.0+.
+var panelSettingsOptionalKeys = map[string]struct{}{}
 
 func panelSettingsHasKey(m map[string]any, key string) bool {
 	_, ok := m[key]
@@ -1170,6 +1168,7 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.ExternalTrafficInformURI = types.StringValue(stringFromMap(m, "externalTrafficInformURI"))
 	state.WarpUpdateInterval = types.Int64Value(int64FromMap(m, "warpUpdateInterval"))
 	applyPanelSettingsV39(m, state)
+	applyPanelSettingsV311(m, state)
 }
 
 func assignOptionalString(m map[string]any, key string, dest *types.String, absentDefault string) {

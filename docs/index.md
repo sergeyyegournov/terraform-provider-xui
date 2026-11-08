@@ -29,7 +29,7 @@ provider "xui" {
 
 ### Optional
 
-- `api_token` (String, Sensitive) Panel API token (Bearer). When set, `/panel/api/*` requests use `Authorization: Bearer <token>` and skip CSRF. Create tokens in the panel under Settings → API tokens. On 3x-ui v3.7+, use an **admin**-scope token (`monitor` / `node-sync` cannot manage provider resources).
+- `api_token` (String, Sensitive) Panel API token (Bearer). When set, `/panel/api/*` requests use `Authorization: Bearer <token>` and skip CSRF. Create tokens in the panel under Settings → API tokens. Use an **admin**-scope token (`monitor` / `node-sync` / `node-admin` cannot manage provider resources).
 - `insecure_skip_verify` (Boolean) Skip TLS verification (e.g. self-signed panel certificate).
 - `password` (String, Sensitive) Panel login password.
 - `username` (String) Panel login username. Required when using password session auth.

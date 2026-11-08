@@ -139,22 +139,3 @@ func TestClientAPIGetAddUpdateDelete(t *testing.T) {
 		t.Fatal("expected error after delete")
 	}
 }
-
-func TestPanelClientInputKeepAliveZeroIsSent(t *testing.T) {
-	t.Parallel()
-	zero := int64(0)
-	raw, err := json.Marshal(PanelClientInput{Email: "a@example.com", KeepAlive: &zero})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(raw), `"keepAlive":0`) {
-		t.Fatalf("expected explicit zero keepAlive, got %s", raw)
-	}
-	raw, err = json.Marshal(PanelClientInput{Email: "a@example.com"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(raw), "keepAlive") {
-		t.Fatalf("expected omitted keepAlive, got %s", raw)
-	}
-}

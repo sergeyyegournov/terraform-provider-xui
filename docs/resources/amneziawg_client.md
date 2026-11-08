@@ -32,6 +32,8 @@ resource "xui_amneziawg_client" "example" {
   inbound_id = xui_inbound.example.id
   email      = "awg-client@example.com"
   # private_key / public_key omitted — panel generates a keypair
+  # keep_alive accepts a seconds string or an AmneziaWG range, e.g. "15-25"
+  keep_alive = "25"
 }
 ```
 
@@ -46,12 +48,13 @@ resource "xui_amneziawg_client" "example" {
 ### Optional
 
 - `allowed_ips` (List of String) Peer AllowedIPs (CIDRs). Empty lets the panel allocate from the inbound subnet.
+- `client_host_rule_ids` (List of Number) Host rule IDs this client's subscriptions are bound to (`clientHostRuleIds`). Omit to leave the panel value unchanged; set to `[]` to clear. Hosts themselves are not managed by this provider yet.
 - `comment` (String)
 - `enable` (Boolean)
 - `expiry_time` (Number) Expiry in milliseconds since Unix epoch (0 = never).
 - `forwarded_ports` (String) AmneziaWG port-forwarding spec, e.g. `80,443,8000-8100` (`forwardedPorts`).
 - `group` (String) Client group label (`group`). Empty means the client is not in a group.
-- `keep_alive` (Number) Persistent keepalive interval in seconds (`keepAlive`).
+- `keep_alive` (String) Persistent keepalive (`keepAlive`): a number of seconds as a string (e.g. `"25"`), or an AmneziaWG range such as `"15-25"`. `"0"` disables keepalive.
 - `limit_hwid` (Number) Per-client subscription HWID device limit (`limitHwid`; 0 = unlimited).
 - `limit_ip` (Number)
 - `pre_shared_key` (String, Sensitive) Optional AmneziaWG pre-shared key.

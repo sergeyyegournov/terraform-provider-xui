@@ -1,9 +1,11 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/syegournov/xkeen-gen/terraform-provider-xui/internal/xui"
@@ -11,36 +13,37 @@ import (
 
 // panelClientPlan holds the shared Terraform values used to build a panel client payload.
 type panelClientPlan struct {
-	Email           string
-	Enable          types.Bool
-	LimitIP         types.Int64
-	LimitHwid       types.Int64
-	TotalGB         types.Int64
-	ExpiryTime      types.Int64
-	TgID            types.Int64
-	Reset           types.Int64
-	ResetDay        types.Int64
-	ResetWeekday    types.Int64
-	ResetMax        types.Int64
-	TrafficReset    types.String
-	TrafficResetDay types.Int64
-	Group           types.String
-	Flow            types.String
-	SubID           types.String
-	Comment         types.String
-	ID              string
-	Password        string
-	Auth            string
-	Security        string
-	PrivateKey      string
-	PublicKey       string
-	PreSharedKey    string
-	AllowedIPs      []string
-	KeepAlive       types.Int64
-	ForwardedPorts  string
+	Email             string
+	Enable            types.Bool
+	LimitIP           types.Int64
+	LimitHwid         types.Int64
+	TotalGB           types.Int64
+	ExpiryTime        types.Int64
+	TgID              types.Int64
+	Reset             types.Int64
+	ResetDay          types.Int64
+	ResetWeekday      types.Int64
+	ResetMax          types.Int64
+	TrafficReset      types.String
+	TrafficResetDay   types.Int64
+	Group             types.String
+	ClientHostRuleIDs types.List
+	Flow              types.String
+	SubID             types.String
+	Comment           types.String
+	ID                string
+	Password          string
+	Auth              string
+	Security          string
+	PrivateKey        string
+	PublicKey         string
+	PreSharedKey      string
+	AllowedIPs        []string
+	KeepAlive         types.String
+	ForwardedPorts    string
 }
 
-func planToPanelClientInput(p panelClientPlan) xui.PanelClientInput {
+func planToPanelClientInput(ctx context.Context, p panelClientPlan) xui.PanelClientInput {
 	c := xui.PanelClientInput{
 		Email:           p.Email,
 		Enable:          p.Enable.ValueBool(),
@@ -93,13 +96,42 @@ func planToPanelClientInput(p panelClientPlan) xui.PanelClientInput {
 		c.AllowedIPs = p.AllowedIPs
 	}
 	if !p.KeepAlive.IsNull() && !p.KeepAlive.IsUnknown() {
-		v := p.KeepAlive.ValueInt64()
-		c.KeepAlive = &v
+		v, err := xui.ParseKeepAliveWire(p.KeepAlive.ValueString())
+		if err == nil {
+			c.KeepAlive = &v
+		}
 	}
 	if p.ForwardedPorts != "" {
 		c.ForwardedPorts = p.ForwardedPorts
 	}
+	if ids, ok := clientHostRuleIDsFromList(ctx, p.ClientHostRuleIDs); ok {
+		c.ClientHostRuleIDs = &ids
+	}
 	return c
+}
+
+func clientHostRuleIDsFromList(ctx context.Context, list types.List) ([]int, bool) {
+	if list.IsNull() || list.IsUnknown() {
+		return nil, false
+	}
+	var elems []types.Int64
+	_ = list.ElementsAs(ctx, &elems, false)
+	out := make([]int, 0, len(elems))
+	for _, e := range elems {
+		if e.IsNull() || e.IsUnknown() {
+			continue
+		}
+		out = append(out, int(e.ValueInt64()))
+	}
+	return out, true
+}
+
+func clientHostRuleIDsList(ids []int) types.List {
+	vals := make([]attr.Value, 0, len(ids))
+	for _, id := range ids {
+		vals = append(vals, types.Int64Value(int64(id)))
+	}
+	return types.ListValueMust(types.Int64Type, vals)
 }
 
 func clientAttachedToInbound(got *xui.ClientGetResult, inboundID int) bool {
@@ -144,6 +176,7 @@ func applyCommonClientFields(
 	enable *types.Bool,
 	limitIP, limitHwid, totalGB, expiry, tgID, reset, resetDay, resetMax, resetWeekday, trafficResetDay *types.Int64,
 	trafficReset, subID, comment, group *types.String,
+	clientHostRuleIDs *types.List,
 	rec xui.PanelClientRecord,
 ) {
 	*enable = types.BoolValue(rec.Enable)
@@ -165,6 +198,7 @@ func applyCommonClientFields(
 	}
 	*trafficReset = types.StringValue(tr)
 	*trafficResetDay = types.Int64Value(rec.TrafficResetDay)
+	*clientHostRuleIDs = clientHostRuleIDsList(rec.ClientHostRuleIDs)
 }
 
 // finalizeClientSubID sets sub_id from the panel when the plan left it unknown
@@ -172,6 +206,12 @@ func applyCommonClientFields(
 func finalizeClientSubID(plan *types.String, rec xui.PanelClientRecord) {
 	if plan.IsUnknown() {
 		*plan = types.StringValue(rec.SubID)
+	}
+}
+
+func finalizeClientHostRuleIDs(plan *types.List, rec xui.PanelClientRecord) {
+	if plan.IsNull() || plan.IsUnknown() {
+		*plan = clientHostRuleIDsList(rec.ClientHostRuleIDs)
 	}
 }
 
@@ -204,4 +244,11 @@ func splitCSV(s string) []string {
 		}
 	}
 	return out
+}
+
+func keepAliveStateValue(v xui.KeepAliveWire) types.String {
+	if v == "" {
+		return types.StringValue("0")
+	}
+	return types.StringValue(string(v))
 }
