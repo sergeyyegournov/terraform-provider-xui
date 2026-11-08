@@ -24,26 +24,27 @@ type tuicClientResource struct {
 }
 
 type tuicClientModel struct {
-	ID              types.String `tfsdk:"id"`
-	InboundID       types.Int64  `tfsdk:"inbound_id"`
-	Email           types.String `tfsdk:"email"`
-	UUID            types.String `tfsdk:"uuid"`
-	Password        types.String `tfsdk:"password"`
-	Enable          types.Bool   `tfsdk:"enable"`
-	LimitIP         types.Int64  `tfsdk:"limit_ip"`
-	LimitHwid       types.Int64  `tfsdk:"limit_hwid"`
-	TotalGB         types.Int64  `tfsdk:"total_gb"`
-	ExpiryTime      types.Int64  `tfsdk:"expiry_time"`
-	TgID            types.Int64  `tfsdk:"tg_id"`
-	SubID           types.String `tfsdk:"sub_id"`
-	Comment         types.String `tfsdk:"comment"`
-	Reset           types.Int64  `tfsdk:"reset"`
-	ResetDay        types.Int64  `tfsdk:"reset_day"`
-	ResetMax        types.Int64  `tfsdk:"reset_max"`
-	ResetWeekday    types.Int64  `tfsdk:"reset_weekday"`
-	Group           types.String `tfsdk:"group"`
-	TrafficReset    types.String `tfsdk:"traffic_reset"`
-	TrafficResetDay types.Int64  `tfsdk:"traffic_reset_day"`
+	ID                types.String `tfsdk:"id"`
+	InboundID         types.Int64  `tfsdk:"inbound_id"`
+	Email             types.String `tfsdk:"email"`
+	UUID              types.String `tfsdk:"uuid"`
+	Password          types.String `tfsdk:"password"`
+	Enable            types.Bool   `tfsdk:"enable"`
+	LimitIP           types.Int64  `tfsdk:"limit_ip"`
+	LimitHwid         types.Int64  `tfsdk:"limit_hwid"`
+	TotalGB           types.Int64  `tfsdk:"total_gb"`
+	ExpiryTime        types.Int64  `tfsdk:"expiry_time"`
+	TgID              types.Int64  `tfsdk:"tg_id"`
+	SubID             types.String `tfsdk:"sub_id"`
+	Comment           types.String `tfsdk:"comment"`
+	Reset             types.Int64  `tfsdk:"reset"`
+	ResetDay          types.Int64  `tfsdk:"reset_day"`
+	ResetMax          types.Int64  `tfsdk:"reset_max"`
+	ResetWeekday      types.Int64  `tfsdk:"reset_weekday"`
+	Group             types.String `tfsdk:"group"`
+	ClientHostRuleIDs types.List   `tfsdk:"client_host_rule_ids"`
+	TrafficReset      types.String `tfsdk:"traffic_reset"`
+	TrafficResetDay   types.Int64  `tfsdk:"traffic_reset_day"`
 }
 
 func NewTUICClientResource() resource.Resource {
@@ -99,7 +100,7 @@ func (m tuicClientModel) toPanelPlan(id, password string) panelClientPlan {
 	return panelClientPlan{
 		Email: m.Email.ValueString(), Enable: m.Enable, LimitIP: m.LimitIP, LimitHwid: m.LimitHwid,
 		TotalGB: m.TotalGB, ExpiryTime: m.ExpiryTime, TgID: m.TgID, Reset: m.Reset,
-		ResetDay: m.ResetDay, ResetWeekday: m.ResetWeekday, ResetMax: m.ResetMax, Group: m.Group, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
+		ResetDay: m.ResetDay, ResetWeekday: m.ResetWeekday, ResetMax: m.ResetMax, Group: m.Group, ClientHostRuleIDs: m.ClientHostRuleIDs, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
 		Flow: types.StringNull(), SubID: m.SubID, Comment: m.Comment, ID: id, Password: password,
 	}
 }
@@ -124,13 +125,14 @@ func (r *tuicClientResource) Create(ctx context.Context, req resource.CreateRequ
 	if !plan.Password.IsNull() && !plan.Password.IsUnknown() {
 		password = strings.TrimSpace(plan.Password.ValueString())
 	}
-	rec, err := createPanelClient(r.client, plan.Email.ValueString(), int(plan.InboundID.ValueInt64()), planToPanelClientInput(plan.toPanelPlan(id, password)))
+	rec, err := createPanelClient(r.client, plan.Email.ValueString(), int(plan.InboundID.ValueInt64()), planToPanelClientInput(ctx, plan.toPanelPlan(id, password)))
 	if err != nil {
 		resp.Diagnostics.AddError("API error", err.Error())
 		return
 	}
 	applyTUICClientSecretsFromRecord(&plan, *rec)
 	finalizeClientSubID(&plan.SubID, *rec)
+	finalizeClientHostRuleIDs(&plan.ClientHostRuleIDs, *rec)
 	if !plan.Comment.IsNull() && plan.Comment.ValueString() == "" {
 		plan.Comment = types.StringValue("")
 	}
@@ -171,7 +173,7 @@ func (r *tuicClientResource) Update(ctx context.Context, req resource.UpdateRequ
 	if !plan.Password.IsNull() && plan.Password.ValueString() != "" {
 		password = plan.Password.ValueString()
 	}
-	if err := r.client.UpdateClient(state.Email.ValueString(), planToPanelClientInput(plan.toPanelPlan(id, password))); err != nil {
+	if err := r.client.UpdateClient(state.Email.ValueString(), planToPanelClientInput(ctx, plan.toPanelPlan(id, password))); err != nil {
 		resp.Diagnostics.AddError("API error", err.Error())
 		return
 	}
@@ -198,6 +200,7 @@ func (r *tuicClientResource) Update(ctx context.Context, req resource.UpdateRequ
 	state.ResetMax = plan.ResetMax
 	state.ResetWeekday = plan.ResetWeekday
 	state.Group = plan.Group
+	state.ClientHostRuleIDs = plan.ClientHostRuleIDs
 	state.TrafficReset = plan.TrafficReset
 	state.TrafficResetDay = plan.TrafficResetDay
 	if !plan.UUID.IsNull() && plan.UUID.ValueString() != "" {
@@ -240,5 +243,5 @@ func applyTUICClientSecretsFromRecord(m *tuicClientModel, rec xui.PanelClientRec
 
 func applyTUICRecord(m *tuicClientModel, rec xui.PanelClientRecord) {
 	applyTUICClientSecretsFromRecord(m, rec)
-	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.LimitHwid, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.ResetDay, &m.ResetMax, &m.ResetWeekday, &m.TrafficResetDay, &m.TrafficReset, &m.SubID, &m.Comment, &m.Group, rec)
+	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.LimitHwid, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.ResetDay, &m.ResetMax, &m.ResetWeekday, &m.TrafficResetDay, &m.TrafficReset, &m.SubID, &m.Comment, &m.Group, &m.ClientHostRuleIDs, rec)
 }

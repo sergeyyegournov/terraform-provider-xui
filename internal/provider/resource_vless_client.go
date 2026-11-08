@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -30,26 +31,27 @@ type vlessClientResource struct {
 }
 
 type vlessClientModel struct {
-	ID              types.String `tfsdk:"id"`
-	InboundID       types.Int64  `tfsdk:"inbound_id"`
-	Email           types.String `tfsdk:"email"`
-	UUID            types.String `tfsdk:"uuid"`
-	Flow            types.String `tfsdk:"flow"`
-	Enable          types.Bool   `tfsdk:"enable"`
-	LimitIP         types.Int64  `tfsdk:"limit_ip"`
-	LimitHwid       types.Int64  `tfsdk:"limit_hwid"`
-	TotalGB         types.Int64  `tfsdk:"total_gb"`
-	ExpiryTime      types.Int64  `tfsdk:"expiry_time"`
-	TgID            types.Int64  `tfsdk:"tg_id"`
-	SubID           types.String `tfsdk:"sub_id"`
-	Comment         types.String `tfsdk:"comment"`
-	Reset           types.Int64  `tfsdk:"reset"`
-	ResetDay        types.Int64  `tfsdk:"reset_day"`
-	ResetMax        types.Int64  `tfsdk:"reset_max"`
-	ResetWeekday    types.Int64  `tfsdk:"reset_weekday"`
-	Group           types.String `tfsdk:"group"`
-	TrafficReset    types.String `tfsdk:"traffic_reset"`
-	TrafficResetDay types.Int64  `tfsdk:"traffic_reset_day"`
+	ID                types.String `tfsdk:"id"`
+	InboundID         types.Int64  `tfsdk:"inbound_id"`
+	Email             types.String `tfsdk:"email"`
+	UUID              types.String `tfsdk:"uuid"`
+	Flow              types.String `tfsdk:"flow"`
+	Enable            types.Bool   `tfsdk:"enable"`
+	LimitIP           types.Int64  `tfsdk:"limit_ip"`
+	LimitHwid         types.Int64  `tfsdk:"limit_hwid"`
+	TotalGB           types.Int64  `tfsdk:"total_gb"`
+	ExpiryTime        types.Int64  `tfsdk:"expiry_time"`
+	TgID              types.Int64  `tfsdk:"tg_id"`
+	SubID             types.String `tfsdk:"sub_id"`
+	Comment           types.String `tfsdk:"comment"`
+	Reset             types.Int64  `tfsdk:"reset"`
+	ResetDay          types.Int64  `tfsdk:"reset_day"`
+	ResetMax          types.Int64  `tfsdk:"reset_max"`
+	ResetWeekday      types.Int64  `tfsdk:"reset_weekday"`
+	Group             types.String `tfsdk:"group"`
+	ClientHostRuleIDs types.List   `tfsdk:"client_host_rule_ids"`
+	TrafficReset      types.String `tfsdk:"traffic_reset"`
+	TrafficResetDay   types.Int64  `tfsdk:"traffic_reset_day"`
 }
 
 func NewVLESSClientResource() resource.Resource {
@@ -172,6 +174,15 @@ func (r *vlessClientResource) Schema(_ context.Context, _ resource.SchemaRequest
 				Computed:            true,
 				Default:             stringdefault.StaticString(""),
 			},
+			"client_host_rule_ids": schema.ListAttribute{
+				MarkdownDescription: "Host rule IDs this client's subscriptions are bound to (`clientHostRuleIds`). Omit to leave the panel value unchanged; set to `[]` to clear. Hosts themselves are not managed by this provider yet.",
+				ElementType:         types.Int64Type,
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"reset_max": schema.Int64Attribute{
 				MarkdownDescription: "Maximum number of auto-renewals (`resetMax`; 0 = unlimited).",
 				Optional:            true,
@@ -210,7 +221,7 @@ func (m vlessClientModel) toPanelPlan(id string) panelClientPlan {
 	return panelClientPlan{
 		Email: m.Email.ValueString(), Enable: m.Enable, LimitIP: m.LimitIP, LimitHwid: m.LimitHwid,
 		TotalGB: m.TotalGB, ExpiryTime: m.ExpiryTime, TgID: m.TgID, Reset: m.Reset,
-		ResetDay: m.ResetDay, ResetWeekday: m.ResetWeekday, ResetMax: m.ResetMax, Group: m.Group, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
+		ResetDay: m.ResetDay, ResetWeekday: m.ResetWeekday, ResetMax: m.ResetMax, Group: m.Group, ClientHostRuleIDs: m.ClientHostRuleIDs, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
 		Flow: m.Flow, SubID: m.SubID, Comment: m.Comment, ID: id,
 	}
 }
@@ -231,7 +242,7 @@ func (r *vlessClientResource) Create(ctx context.Context, req resource.CreateReq
 	}
 	wantEmptyFlow := !plan.Flow.IsNull() && plan.Flow.ValueString() == ""
 	wantEmptyComment := !plan.Comment.IsNull() && plan.Comment.ValueString() == ""
-	rec, err := createPanelClient(r.client, plan.Email.ValueString(), int(plan.InboundID.ValueInt64()), planToPanelClientInput(plan.toPanelPlan(id)))
+	rec, err := createPanelClient(r.client, plan.Email.ValueString(), int(plan.InboundID.ValueInt64()), planToPanelClientInput(ctx, plan.toPanelPlan(id)))
 	if err != nil {
 		resp.Diagnostics.AddError("API error", err.Error())
 		return
@@ -240,6 +251,7 @@ func (r *vlessClientResource) Create(ctx context.Context, req resource.CreateReq
 	plan.ID = types.StringValue(uid)
 	plan.UUID = types.StringValue(uid)
 	finalizeClientSubID(&plan.SubID, *rec)
+	finalizeClientHostRuleIDs(&plan.ClientHostRuleIDs, *rec)
 	// Keep plan values for enable, limits, flow, etc. so post-apply state matches the
 	// plan (the panel GET right after add may still report enable=true).
 	if wantEmptyFlow {
@@ -270,7 +282,7 @@ func (r *vlessClientResource) Read(ctx context.Context, req resource.ReadRequest
 	state.ID = types.StringValue(uid)
 	state.UUID = types.StringValue(uid)
 	state.Flow = types.StringValue(rec.Flow)
-	applyCommonClientFields(&state.Enable, &state.LimitIP, &state.LimitHwid, &state.TotalGB, &state.ExpiryTime, &state.TgID, &state.Reset, &state.ResetDay, &state.ResetMax, &state.ResetWeekday, &state.TrafficResetDay, &state.TrafficReset, &state.SubID, &state.Comment, &state.Group, *rec)
+	applyCommonClientFields(&state.Enable, &state.LimitIP, &state.LimitHwid, &state.TotalGB, &state.ExpiryTime, &state.TgID, &state.Reset, &state.ResetDay, &state.ResetMax, &state.ResetWeekday, &state.TrafficResetDay, &state.TrafficReset, &state.SubID, &state.Comment, &state.Group, &state.ClientHostRuleIDs, *rec)
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 }
 
@@ -281,7 +293,7 @@ func (r *vlessClientResource) Update(ctx context.Context, req resource.UpdateReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.UpdateClient(state.Email.ValueString(), planToPanelClientInput(plan.toPanelPlan(state.ID.ValueString()))); err != nil {
+	if err := r.client.UpdateClient(state.Email.ValueString(), planToPanelClientInput(ctx, plan.toPanelPlan(state.ID.ValueString()))); err != nil {
 		resp.Diagnostics.AddError("API error", err.Error())
 		return
 	}
@@ -311,6 +323,7 @@ func (r *vlessClientResource) Update(ctx context.Context, req resource.UpdateReq
 	state.ResetMax = plan.ResetMax
 	state.ResetWeekday = plan.ResetWeekday
 	state.Group = plan.Group
+	state.ClientHostRuleIDs = plan.ClientHostRuleIDs
 	state.TrafficReset = plan.TrafficReset
 	state.TrafficResetDay = plan.TrafficResetDay
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)

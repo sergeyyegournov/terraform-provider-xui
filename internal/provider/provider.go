@@ -46,7 +46,7 @@ func (p *xuiProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *
 				Sensitive:           true,
 			},
 			"api_token": schema.StringAttribute{
-				MarkdownDescription: "Panel API token (Bearer). When set, `/panel/api/*` requests use `Authorization: Bearer <token>` and skip CSRF. Create tokens in the panel under Settings → API tokens. On 3x-ui v3.7+, use an **admin**-scope token (`monitor` / `node-sync` cannot manage provider resources).",
+				MarkdownDescription: "Panel API token (Bearer). When set, `/panel/api/*` requests use `Authorization: Bearer <token>` and skip CSRF. Create tokens in the panel under Settings → API tokens. Use an **admin**-scope token (`monitor` / `node-sync` / `node-admin` cannot manage provider resources).",
 				Optional:            true,
 				Sensitive:           true,
 			},
@@ -124,6 +124,7 @@ func (p *xuiProvider) Resources(_ context.Context) []func() resource.Resource {
 		NewHysteriaClientResource,
 		NewAmneziaWGClientResource,
 		NewTUICClientResource,
+		NewMasqueClientResource,
 		NewXrayTemplateResource,
 		NewPanelSettingsResource,
 	}

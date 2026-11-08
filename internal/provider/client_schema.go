@@ -5,9 +5,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 func clientCommonSchemaAttributes(idDesc string) map[string]schema.Attribute {
@@ -101,6 +103,15 @@ func clientCommonSchemaAttributes(idDesc string) map[string]schema.Attribute {
 			Optional:            true,
 			Computed:            true,
 			Default:             stringdefault.StaticString(""),
+		},
+		"client_host_rule_ids": schema.ListAttribute{
+			MarkdownDescription: "Host rule IDs this client's subscriptions are bound to (`clientHostRuleIds`). Omit to leave the panel value unchanged; set to `[]` to clear. Hosts themselves are not managed by this provider yet.",
+			ElementType:         types.Int64Type,
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.List{
+				listplanmodifier.UseStateForUnknown(),
+			},
 		},
 		"reset_max": schema.Int64Attribute{
 			MarkdownDescription: "Maximum number of auto-renewals (`resetMax`; 0 = unlimited).",

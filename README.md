@@ -2,23 +2,25 @@
 
 Terraform provider to manage [3x-ui](https://github.com/MHSanaei/3x-ui/) **v3+** panels over the HTTP API. It targets inbounds, per-protocol clients, panel settings, and Xray templates—the same objects you configure in the web UI.
 
-Requires a 3x-ui panel that exposes the v3 API (`/panel/api/*`, CSRF-protected session auth or optional API tokens). Requires 3x-ui **v3.4.0+** (settings/Xray under `/panel/api`, `panelOutbound` / `remarkTemplate` field names).
+Requires a 3x-ui panel that exposes the v3 API (`/panel/api/*`, CSRF-protected session auth or optional API tokens). Requires 3x-ui **v3.9.0+**.
 
 ## Panel compatibility
 
-This provider release (**v0.9.0**) is developed and acceptance-tested against **[3x-ui v3.9.0](https://github.com/MHSanaei/3x-ui/releases/tag/v3.9.0)**. Older panels from **v3.4.0+** still work for core resources. Attributes added in 3.6–3.9 stay optional: on an older panel that omits them, the provider keeps the prior state instead of zeroing it.
+This provider release (**v0.10.0**) is developed and acceptance-tested against **[3x-ui v3.11.0](https://github.com/MHSanaei/3x-ui/releases/tag/v3.11.0)**. Older panels from **v3.9.0+** still work for core resources. Attributes added in 3.10/3.11 stay optional on a 3.9 panel that omits them. Panels older than **v3.9.0** are not supported.
 
-### 3.9 behavior
+### 3.9–3.11 behavior
 
 - **Inbound enable.** `POST /panel/api/inbounds/update/:id` ignores `enable` (and `settings.clients`). Create still honors `enable`. The provider calls `POST /panel/api/inbounds/setEnable/:id` when `enable` changes. `exclude_from_sub` and `sub_sort_index` are sent on every update; the panel resets them when they are omitted (`sub_sort_index` `0` is stored as `1`).
 - **`sub_profile_mode`.** `none`, `builtin`, or `custom`. Omit the attribute and the provider leaves the panel value in place (an upgraded panel with a saved profile URL is `custom`; a factory install is `none`). An explicit `none` keeps a stored URL but stops sending it.
-- **Weekly client renewal.** `reset_weekday` is 1–7 (Monday–Sunday). It cannot be combined with `reset` or `reset_day`. Nodes older than 3.9 ignore it, and an older panel can delete a weekly-only client.
-- **AmneziaWG `keep_alive`.** `0` is sent explicitly so an update turns keepalive off. Omitting the field on the API would keep the stored value.
+- **Weekly client renewal.** `reset_weekday` is 1–7 (Monday–Sunday). It cannot be combined with `reset` or `reset_day`.
+- **AmneziaWG `keep_alive`.** A string: seconds such as `"25"`, or a range such as `"15-25"`. `"0"` is sent explicitly so an update turns keepalive off. Omitting the field on the API would keep the stored value. This is a breaking attribute type change from the previous Int64 form.
+- **`client_host_rule_ids`.** Bind a client to host rules by ID. Omit the attribute to leave the panel value unchanged; set `[]` to clear. Host CRUD is not managed yet.
 - **`restart_xray_on_client_disable`.** Since 3.8.5 this also restarts Xray on a manual client disable or delete, not only expiry or quota.
+- **New panel settings (3.11).** `sub_host_sort_mode` (`inbound-first` / `hosts-first`), `node_down_threshold`, and `sub_clash_remote_dns`.
 
-After the panel's Xray-core v26.9.30 startup migration, update stored JSON before the next apply. The new core rewrites XDNS finalmasks to an object and moves WireGuard outbound `domainStrategy` into `sockopt` / `targetStrategy`. An `xui_xray_template` or `stream_settings` value in the old shape plans a revert, and the new core rejects it.
+After the panel's Xray-core v26.10.x startup migration, update stored JSON before the next apply. The new core rewrites XDNS finalmasks to the `names`/`addrs` shape and rewrites client-side `quicParams.udpHop` into a `udphop` mask (inbounds keep `udpHop` as the advertised port range). An `xui_xray_template` or host finalmask value in the old shape will plan a revert and the new core will reject it. Outbound TLS now checks Mozilla roots by default; servers with a privately installed CA need the panel's *Use system CA* switch. Shadowsocks-2022 `2022-blake3-chacha20-poly1305` inbounds migrate to `2022-blake3-aes-256-gcm` on first start.
 
-Other panel checks the provider does not encode: an empty REALITY `minClientVer` no longer implies a minimum client version (3.8); WireGuard and AmneziaWG `allowedIPs` that overlap another client are rejected on save (existing overlaps keep working until the next client update); saving or enabling an inbound with a port collision is an API error (3.8.5), including ports an AmneziaWG peer forwards.
+Other panel checks the provider does not encode: WireGuard and AmneziaWG `allowedIPs` that overlap another client are rejected on every save; AmneziaWG `kernelMode` is opt-in per inbound (NAT-only) and is refused for features the kernel path cannot honor; fresh panel databases get a random first admin user (printed to the server log); a wrong Bearer token is **401**; cookie auth still retries 404/403. Consuming a token via provider `api_token` still requires an **admin**-scope token. The 3.11 `node-admin` scope is not enough for this provider.
 
 ### Not implemented yet
 
@@ -26,22 +28,22 @@ These 3x-ui surfaces exist in the panel API but are **not** managed as Terraform
 
 Declarative APIs left to a later change:
 
-- **Hosts** — add / update / delete by `groupId` (`/panel/api/hosts`). Reorder and bulk enable / delete are actions.
+- **Hosts** — add / update / delete by `groupId` (`/panel/api/hosts`), including SNI pools, CIDR → random IPs (`randomCount`), and sort order. Reorder and bulk enable / delete are actions. Client membership uses `client_host_rule_ids`.
 - **Nodes** — add / update / delete (`/panel/api/nodes`). Probe, certificate fingerprint, mTLS reload, and `updatePanel` are actions. An inbound `nodeId` is preserved when the provider omits it.
 - **Outbound subscriptions** — create / update / delete (`/panel/api/xray/outbound-subs`). Refresh, move, and parse are actions.
 - **Subscription balancers** — create / update / delete (`/panel/api/sub-balancers`).
 - **Client groups** — create / rename / delete. Membership is the client `group` attribute. Deleting a group clears that label on every member, so a separate resource is a poor fit.
 - **Fallbacks** — `POST /panel/api/inbounds/:id/fallbacks` replaces the whole list. A nested block later, not one resource per rule.
 - **Per-client external links** — replace-all (`/panel/api/clients/{email}/externalLinks`).
-- **MTProto and WireGuard clients** — the clients API already accepts them (`secret` / `adTag`, and WireGuard keys). They stay out of this release, same as the 3.7 provider shipping AmneziaWG only.
+- **MTProto and WireGuard clients** — the clients API already accepts them (`secret` / `adTag`, and WireGuard keys). They stay out of this release.
 - **HWID device registry** — list / clear / delete individual devices (`/panel/api/clients/hwids/…`). Per-client **`limit_hwid`** is supported on client resources.
-- **API token management** — create / enable / delete panel API tokens (`/panel/api/setting/apiTokens/…`). v3.9 only changes CLI regeneration (scope and expiry are kept). Consuming a token via provider `api_token` is supported. On 3.7+ the token must be **admin** scope. A wrong Bearer token is **401**; cookie auth still retries 404/403.
+- **API token management** — create / enable / delete panel API tokens (`/panel/api/setting/apiTokens/…`). Consuming a token via provider `api_token` is supported.
 
-Imperative APIs (no resources): traffic reset and quota edits, delete depleted / orphan / all clients, bulk enable / disable / delete / adjust / attach / detach, group traffic reset, online clients, IP lists, link and QR helpers, renewal preview, UUID / key / certificate generators, REALITY scans, status, logs, metrics, restart or install Xray, update the panel or geofiles, import a database, backup to Telegram, SMTP / Telegram / Discord tests, WARP / Nord / PIA actions, outbound tests, balancer override, and route tests.
+Imperative APIs (no resources): traffic reset and quota edits, delete depleted / orphan / all clients, bulk enable / disable / delete / adjust / attach / detach, group traffic reset, online clients, IP lists, link and QR helpers, renewal preview, UUID / key / certificate helpers, REALITY scans, status, logs, metrics, restart or install Xray, update the panel or geofiles, import a database, backup to Telegram, SMTP / Telegram / Discord tests, WARP / Nord / PIA actions (including WARP-over-MASQUE), outbound tests, balancer override, route tests, AmneziaWG kernel readiness probes, and host reorder.
 
 ## Features
 
-- **Inbounds** — create, update, import, and destroy Xray inbounds (`xui_inbound`).
+- **Inbounds** — create, update, import, and destroy Xray inbounds (`xui_inbound`), including `protocol = "masque"` and AmneziaWG `kernelMode` via `settings` JSON.
 - **Clients** — manage users on an existing inbound via the dedicated clients API (no inbound RMW races):
   - `xui_vless_client`
   - `xui_vmess_client`
@@ -50,6 +52,7 @@ Imperative APIs (no resources): traffic reset and quota edits, delete depleted /
   - `xui_hysteria_client`
   - `xui_amneziawg_client` (AmneziaWG peers; inbound via `xui_inbound` with `protocol = "amneziawg"`)
   - `xui_tuic_client` (TUIC v5 users; inbound via `xui_inbound` with `protocol = "tuic"`)
+  - `xui_masque_client` (MASQUE users; inbound via `xui_inbound` with `protocol = "masque"`)
 - **Panel & Xray** — `xui_panel_settings`, `xui_xray_template`.
 - **Data sources** — `xui_inbounds`, `xui_inbound` (optional protocol filter).
 
@@ -58,7 +61,7 @@ Client secrets (`uuid`, `password`, `auth`) can be set in Terraform or left unse
 ## Requirements
 
 - [Terraform](https://www.terraform.io/downloads) >= 1.0
-- A reachable 3x-ui **v3.4.0+** panel (recommended: **v3.9.0**, matching this provider)
+- A reachable 3x-ui **v3.9.0+** panel (recommended: **v3.11.0**, matching this provider)
 
 ## Provider configuration
 
@@ -67,7 +70,7 @@ terraform {
   required_providers {
     xui = {
       source  = "sergeyyegournov/xui" # after Terraform Registry publish; see below for local dev
-      version = "~> 0.9"
+      version = "~> 0.10"
     }
   }
 }
@@ -75,7 +78,7 @@ terraform {
 provider "xui" {
   base_url = "https://panel.example.com/your-random-path/" # trailing slash as in the panel URL
 
-  # Option A: API token (recommended; on 3x-ui v3.7+ use an admin-scope token)
+  # Option A: API token (recommended; use an admin-scope token)
   api_token = var.xui_api_token
 
   # Option B: username + password (session + CSRF)
@@ -89,7 +92,7 @@ provider "xui" {
 | Argument | Description |
 |----------|-------------|
 | `base_url` | Panel root URL including the random path prefix. |
-| `api_token` | Bearer token for `/panel/api/*` (Settings → API tokens in the panel). On 3x-ui **v3.7+**, use an **admin**-scope token (`monitor` / `node-sync` cannot manage resources). |
+| `api_token` | Bearer token for `/panel/api/*` (Settings → API tokens in the panel). Use an **admin**-scope token (`monitor` / `node-sync` / `node-admin` cannot manage provider resources). |
 | `username` / `password` | Session auth when not using a token. |
 | `insecure_skip_verify` | Skip TLS certificate verification. |
 
@@ -174,7 +177,7 @@ make testacc  # acceptance tests (Docker + 3x-ui container)
 make docs     # regenerate docs/ from schema
 ```
 
-Acceptance tests use [testcontainers](https://golang.testcontainers.org/) with `ghcr.io/mhsanaei/3x-ui:v3.9.0`. Docker must be running.
+Acceptance tests use [testcontainers](https://golang.testcontainers.org/) with `ghcr.io/mhsanaei/3x-ui:v3.11.0`. Docker must be running.
 
 ## Releasing
 

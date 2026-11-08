@@ -88,6 +88,7 @@ resource "xui_panel_settings" "this" {
 - `ldap_user_attr` (String) LDAP attribute for username (e.g. `mail` or `uid`).
 - `ldap_user_filter` (String) LDAP user search filter.
 - `ldap_vless_field` (String) LDAP attribute mapped to VLESS identity.
+- `node_down_threshold` (Number) Consecutive failed node checks before a `node.down` alert (`nodeDownThreshold`; 1–100).
 - `outbound_down_threshold` (Number) Consecutive failed observatory probes before an outbound.down event fires.
 - `page_size` (Number) Number of items per page in lists.
 - `panel_proxy` (String) Proxy URL used by the panel for outbound requests (`panelOutbound`).
@@ -115,6 +116,7 @@ resource "xui_panel_settings" "this" {
 - `sub_clash_enable` (Boolean) Enable Clash/Mihomo subscription endpoint.
 - `sub_clash_enable_routing` (Boolean) Enable Clash/Mihomo subscription routing rules.
 - `sub_clash_path` (String) Path for Clash/Mihomo subscription endpoint.
+- `sub_clash_remote_dns` (Boolean) Also take `dns` and `sniffer` blocks from remote Clash rule templates (`subClashRemoteDNS`).
 - `sub_clash_rules` (String) Clash/Mihomo subscription routing rules (plain text).
 - `sub_clash_uri` (String) Clash/Mihomo subscription URI.
 - `sub_clash_user_agent_regex` (String) User-Agent regex for Clash/Mihomo subscription auto-detect.
@@ -148,6 +150,7 @@ resource "xui_panel_settings" "this" {
 - `sub_happ_tun_mode` (String) Happ TUN mode (`subHappTunMode`).
 - `sub_happ_tun_type` (String) Happ TUN type (`subHappTunType`).
 - `sub_hide_settings` (Boolean) Hide settings section in subscription pages.
+- `sub_host_sort_mode` (String) How subscription formats order host rules relative to inbounds (`subHostSortMode`): `inbound-first` or `hosts-first`.
 - `sub_incy_announce_url` (String) Incy announcement URL (`subIncyAnnounceUrl`).
 - `sub_incy_app_auto_detect` (Boolean) Auto-detect Incy clients from the subscription User-Agent (`subIncyAppAutoDetect`).
 - `sub_incy_banner_bg_color` (String) Incy banner background color (`subIncyBannerBgColor`).

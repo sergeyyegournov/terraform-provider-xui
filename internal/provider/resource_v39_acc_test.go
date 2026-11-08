@@ -221,17 +221,24 @@ func TestAccAmneziaWGClient_keepAliveZero(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccAmneziaWGKeepAliveConfig(inboundID, email, 25),
-				Check:  checkClientKeepAliveAPI(email, 25),
+				Config: testAccAmneziaWGKeepAliveConfig(inboundID, email, "25"),
+				Check:  checkClientKeepAliveAPI(email, "25"),
 			},
 			{
-				Config: testAccAmneziaWGKeepAliveConfig(inboundID, email, 0),
+				Config: testAccAmneziaWGKeepAliveConfig(inboundID, email, "15-25"),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("xui_amneziawg_client.test", "keep_alive", "0"),
-					checkClientKeepAliveAPI(email, 0),
+					resource.TestCheckResourceAttr("xui_amneziawg_client.test", "keep_alive", "15-25"),
+					checkClientKeepAliveAPI(email, "15-25"),
 				),
 			},
-			accClientNoDriftStep(testAccAmneziaWGKeepAliveConfig(inboundID, email, 0)),
+			{
+				Config: testAccAmneziaWGKeepAliveConfig(inboundID, email, "0"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("xui_amneziawg_client.test", "keep_alive", "0"),
+					checkClientKeepAliveAPI(email, "0"),
+				),
+			},
+			accClientNoDriftStep(testAccAmneziaWGKeepAliveConfig(inboundID, email, "0")),
 		},
 	})
 }
@@ -270,19 +277,19 @@ func createAmneziaWGInbound(remark string, port int) (int, error) {
 	return id, nil
 }
 
-func testAccAmneziaWGKeepAliveConfig(inboundID int, email string, keepAlive int) string {
+func testAccAmneziaWGKeepAliveConfig(inboundID int, email string, keepAlive string) string {
 	return fmt.Sprintf(`%s
 
 resource "xui_amneziawg_client" "test" {
   inbound_id  = %d
   email       = %q
-  keep_alive  = %d
+  keep_alive  = %q
   allowed_ips = ["10.8.1.2/32"]
 }
 `, providerConfig(), inboundID, email, keepAlive)
 }
 
-func checkClientKeepAliveAPI(email string, keepAlive int64) resource.TestCheckFunc {
+func checkClientKeepAliveAPI(email string, keepAlive string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		cli, err := accClient()
 		if err != nil {
@@ -292,8 +299,12 @@ func checkClientKeepAliveAPI(email string, keepAlive int64) resource.TestCheckFu
 		if err != nil {
 			return err
 		}
-		if got.Client.KeepAlive != keepAlive {
-			return fmt.Errorf("panel keepAlive = %d, want %d", got.Client.KeepAlive, keepAlive)
+		gotKA := string(got.Client.KeepAlive)
+		if gotKA == "" {
+			gotKA = "0"
+		}
+		if gotKA != keepAlive {
+			return fmt.Errorf("panel keepAlive = %q, want %q", gotKA, keepAlive)
 		}
 		return nil
 	}
@@ -393,4 +404,91 @@ resource "xui_panel_settings" "test" {
   remark_model = %q%s
 }
 `, providerConfig(), remark, modeLine)
+}
+
+func TestAccMasqueClient_basic(t *testing.T) {
+	testAccPreCheck(t)
+	port := nextPort()
+	remark := fmt.Sprintf("tf-acc-masque-%d", port)
+	email := fmt.Sprintf("tf-acc-masque-%d@example.com", port)
+	cfg := testAccMasqueClientConfig(remark, port, email)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		CheckDestroy:             checkInboundDestroyed,
+		Steps: []resource.TestStep{
+			{
+				Config: cfg,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("xui_masque_client.test", "id"),
+					resource.TestCheckResourceAttrSet("xui_masque_client.test", "password"),
+					resource.TestCheckResourceAttr("xui_masque_client.test", "email", email),
+					accClientCommonDefaultsChecks("xui_masque_client.test"),
+				),
+			},
+			{
+				ResourceName:            "xui_masque_client.test",
+				ImportState:             true,
+				ImportStateIdFunc:       importClientIDFunc("xui_masque_client.test"),
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"password", "sub_id", "comment"},
+			},
+			accClientNoDriftStep(cfg),
+		},
+	})
+}
+
+func testAccMasqueClientConfig(remark string, port int, email string) string {
+	return fmt.Sprintf(`%s
+
+resource "xui_inbound" "test" {
+  protocol = "masque"
+  remark   = %q
+  port     = %d
+  settings = jsonencode({
+    clients = []
+    address = ["10.14.0.1/24", "fd14::1/64"]
+  })
+  stream_settings = "{}"
+  sniffing        = "{}"
+}
+
+resource "xui_masque_client" "test" {
+  inbound_id = xui_inbound.test.id
+  email      = %q
+}
+`, providerConfig(), remark, port, email)
+}
+
+func TestAccPanelSettings_v311Attributes(t *testing.T) {
+	testAccPreCheck(t)
+	remark := fmt.Sprintf("tf-acc-panel-311-%d", nextPort())
+	cfg := testAccPanelSettingsV311Config(remark)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: cfg,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("xui_panel_settings.test", "sub_host_sort_mode", "hosts-first"),
+					resource.TestCheckResourceAttr("xui_panel_settings.test", "node_down_threshold", "3"),
+					resource.TestCheckResourceAttr("xui_panel_settings.test", "sub_clash_remote_dns", "true"),
+				),
+			},
+			accClientNoDriftStep(cfg),
+		},
+	})
+}
+
+func testAccPanelSettingsV311Config(remark string) string {
+	return fmt.Sprintf(`%s
+
+resource "xui_panel_settings" "test" {
+  remark_model         = %q
+  sub_host_sort_mode   = "hosts-first"
+  node_down_threshold  = 3
+  sub_clash_remote_dns = true
+}
+`, providerConfig(), remark)
 }

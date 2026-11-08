@@ -8,7 +8,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
@@ -27,30 +26,31 @@ type amneziawgClientResource struct {
 }
 
 type amneziawgClientModel struct {
-	ID              types.String `tfsdk:"id"`
-	InboundID       types.Int64  `tfsdk:"inbound_id"`
-	Email           types.String `tfsdk:"email"`
-	PrivateKey      types.String `tfsdk:"private_key"`
-	PublicKey       types.String `tfsdk:"public_key"`
-	PreSharedKey    types.String `tfsdk:"pre_shared_key"`
-	AllowedIPs      types.List   `tfsdk:"allowed_ips"`
-	KeepAlive       types.Int64  `tfsdk:"keep_alive"`
-	ForwardedPorts  types.String `tfsdk:"forwarded_ports"`
-	Enable          types.Bool   `tfsdk:"enable"`
-	LimitIP         types.Int64  `tfsdk:"limit_ip"`
-	LimitHwid       types.Int64  `tfsdk:"limit_hwid"`
-	TotalGB         types.Int64  `tfsdk:"total_gb"`
-	ExpiryTime      types.Int64  `tfsdk:"expiry_time"`
-	TgID            types.Int64  `tfsdk:"tg_id"`
-	SubID           types.String `tfsdk:"sub_id"`
-	Comment         types.String `tfsdk:"comment"`
-	Reset           types.Int64  `tfsdk:"reset"`
-	ResetDay        types.Int64  `tfsdk:"reset_day"`
-	ResetMax        types.Int64  `tfsdk:"reset_max"`
-	ResetWeekday    types.Int64  `tfsdk:"reset_weekday"`
-	Group           types.String `tfsdk:"group"`
-	TrafficReset    types.String `tfsdk:"traffic_reset"`
-	TrafficResetDay types.Int64  `tfsdk:"traffic_reset_day"`
+	ID                types.String `tfsdk:"id"`
+	InboundID         types.Int64  `tfsdk:"inbound_id"`
+	Email             types.String `tfsdk:"email"`
+	PrivateKey        types.String `tfsdk:"private_key"`
+	PublicKey         types.String `tfsdk:"public_key"`
+	PreSharedKey      types.String `tfsdk:"pre_shared_key"`
+	AllowedIPs        types.List   `tfsdk:"allowed_ips"`
+	KeepAlive         types.String `tfsdk:"keep_alive"`
+	ForwardedPorts    types.String `tfsdk:"forwarded_ports"`
+	Enable            types.Bool   `tfsdk:"enable"`
+	LimitIP           types.Int64  `tfsdk:"limit_ip"`
+	LimitHwid         types.Int64  `tfsdk:"limit_hwid"`
+	TotalGB           types.Int64  `tfsdk:"total_gb"`
+	ExpiryTime        types.Int64  `tfsdk:"expiry_time"`
+	TgID              types.Int64  `tfsdk:"tg_id"`
+	SubID             types.String `tfsdk:"sub_id"`
+	Comment           types.String `tfsdk:"comment"`
+	Reset             types.Int64  `tfsdk:"reset"`
+	ResetDay          types.Int64  `tfsdk:"reset_day"`
+	ResetMax          types.Int64  `tfsdk:"reset_max"`
+	ResetWeekday      types.Int64  `tfsdk:"reset_weekday"`
+	Group             types.String `tfsdk:"group"`
+	ClientHostRuleIDs types.List   `tfsdk:"client_host_rule_ids"`
+	TrafficReset      types.String `tfsdk:"traffic_reset"`
+	TrafficResetDay   types.Int64  `tfsdk:"traffic_reset_day"`
 }
 
 func NewAmneziaWGClientResource() resource.Resource {
@@ -63,6 +63,14 @@ func (r *amneziawgClientResource) Metadata(_ context.Context, _ resource.Metadat
 
 func (r *amneziawgClientResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
 	validateClientRenewalConfig(ctx, req.Config, &resp.Diagnostics)
+	var keepAlive types.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("keep_alive"), &keepAlive)...)
+	if resp.Diagnostics.HasError() || keepAlive.IsNull() || keepAlive.IsUnknown() {
+		return
+	}
+	if _, err := xui.ParseKeepAliveWire(keepAlive.ValueString()); err != nil {
+		resp.Diagnostics.AddAttributeError(path.Root("keep_alive"), "Invalid keep_alive", err.Error())
+	}
 }
 
 func (r *amneziawgClientResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -98,11 +106,11 @@ func (r *amneziawgClientResource) Schema(_ context.Context, _ resource.SchemaReq
 		Computed:            true,
 		Default:             listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
 	}
-	attrs["keep_alive"] = schema.Int64Attribute{
-		MarkdownDescription: "Persistent keepalive interval in seconds (`keepAlive`).",
+	attrs["keep_alive"] = schema.StringAttribute{
+		MarkdownDescription: "Persistent keepalive (`keepAlive`): a number of seconds as a string (e.g. `\"25\"`), or an AmneziaWG range such as `\"15-25\"`. `\"0\"` disables keepalive.",
 		Optional:            true,
 		Computed:            true,
-		Default:             int64default.StaticInt64(0),
+		Default:             stringdefault.StaticString("0"),
 	}
 	attrs["forwarded_ports"] = schema.StringAttribute{
 		MarkdownDescription: "AmneziaWG port-forwarding spec, e.g. `80,443,8000-8100` (`forwardedPorts`).",
@@ -142,7 +150,7 @@ func (m amneziawgClientModel) toPanelPlan(ctx context.Context, priv, pub, psk, f
 	return panelClientPlan{
 		Email: m.Email.ValueString(), Enable: m.Enable, LimitIP: m.LimitIP, LimitHwid: m.LimitHwid,
 		TotalGB: m.TotalGB, ExpiryTime: m.ExpiryTime, TgID: m.TgID, Reset: m.Reset,
-		ResetDay: m.ResetDay, ResetWeekday: m.ResetWeekday, ResetMax: m.ResetMax, Group: m.Group, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
+		ResetDay: m.ResetDay, ResetWeekday: m.ResetWeekday, ResetMax: m.ResetMax, Group: m.Group, ClientHostRuleIDs: m.ClientHostRuleIDs, TrafficReset: m.TrafficReset, TrafficResetDay: m.TrafficResetDay,
 		Flow: types.StringNull(), SubID: m.SubID, Comment: m.Comment,
 		PrivateKey: priv, PublicKey: pub, PreSharedKey: psk, AllowedIPs: allowed,
 		KeepAlive: m.KeepAlive, ForwardedPorts: forwarded,
@@ -156,13 +164,14 @@ func (r *amneziawgClientResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 	priv, pub, psk, forwarded := awgSecretsFromPlan(plan)
-	rec, err := createPanelClient(r.client, plan.Email.ValueString(), int(plan.InboundID.ValueInt64()), planToPanelClientInput(plan.toPanelPlan(ctx, priv, pub, psk, forwarded)))
+	rec, err := createPanelClient(r.client, plan.Email.ValueString(), int(plan.InboundID.ValueInt64()), planToPanelClientInput(ctx, plan.toPanelPlan(ctx, priv, pub, psk, forwarded)))
 	if err != nil {
 		resp.Diagnostics.AddError("API error", err.Error())
 		return
 	}
 	applyAmneziaWGClientSecretsFromRecord(&plan, *rec)
 	finalizeClientSubID(&plan.SubID, *rec)
+	finalizeClientHostRuleIDs(&plan.ClientHostRuleIDs, *rec)
 	if !plan.Comment.IsNull() && plan.Comment.ValueString() == "" {
 		plan.Comment = types.StringValue("")
 	}
@@ -211,7 +220,7 @@ func (r *amneziawgClientResource) Update(ctx context.Context, req resource.Updat
 	if !plan.ForwardedPorts.IsNull() {
 		forwarded = plan.ForwardedPorts.ValueString()
 	}
-	if err := r.client.UpdateClient(state.Email.ValueString(), planToPanelClientInput(plan.toPanelPlan(ctx, priv, pub, psk, forwarded))); err != nil {
+	if err := r.client.UpdateClient(state.Email.ValueString(), planToPanelClientInput(ctx, plan.toPanelPlan(ctx, priv, pub, psk, forwarded))); err != nil {
 		resp.Diagnostics.AddError("API error", err.Error())
 		return
 	}
@@ -238,6 +247,7 @@ func (r *amneziawgClientResource) Update(ctx context.Context, req resource.Updat
 	state.ResetMax = plan.ResetMax
 	state.ResetWeekday = plan.ResetWeekday
 	state.Group = plan.Group
+	state.ClientHostRuleIDs = plan.ClientHostRuleIDs
 	state.TrafficReset = plan.TrafficReset
 	state.TrafficResetDay = plan.TrafficResetDay
 	state.KeepAlive = plan.KeepAlive
@@ -298,7 +308,7 @@ func applyAmneziaWGClientSecretsFromRecord(m *amneziawgClientModel, rec xui.Pane
 	m.PublicKey = types.StringValue(rec.PublicKey)
 	m.PreSharedKey = types.StringValue(rec.PreSharedKey)
 	m.ForwardedPorts = types.StringValue(rec.ForwardedPorts)
-	m.KeepAlive = types.Int64Value(rec.KeepAlive)
+	m.KeepAlive = keepAliveStateValue(rec.KeepAlive)
 	vals := make([]attr.Value, 0)
 	for _, ip := range splitCSV(rec.AllowedIPs) {
 		vals = append(vals, types.StringValue(ip))
@@ -308,5 +318,5 @@ func applyAmneziaWGClientSecretsFromRecord(m *amneziawgClientModel, rec xui.Pane
 
 func applyAmneziaWGRecord(m *amneziawgClientModel, rec xui.PanelClientRecord) {
 	applyAmneziaWGClientSecretsFromRecord(m, rec)
-	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.LimitHwid, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.ResetDay, &m.ResetMax, &m.ResetWeekday, &m.TrafficResetDay, &m.TrafficReset, &m.SubID, &m.Comment, &m.Group, rec)
+	applyCommonClientFields(&m.Enable, &m.LimitIP, &m.LimitHwid, &m.TotalGB, &m.ExpiryTime, &m.TgID, &m.Reset, &m.ResetDay, &m.ResetMax, &m.ResetWeekday, &m.TrafficResetDay, &m.TrafficReset, &m.SubID, &m.Comment, &m.Group, &m.ClientHostRuleIDs, rec)
 }
