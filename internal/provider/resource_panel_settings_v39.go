@@ -92,7 +92,7 @@ func panelSettingsV39Attributes() map[string]schema.Attribute {
 			Default:             booldefault.StaticBool(false),
 		},
 		"discord_bot_token": schema.StringAttribute{
-			MarkdownDescription: "Discord bot token (`discordBotToken`).",
+			MarkdownDescription: "Discord bot token (`discordBotToken`). The settings API redacts this and sets `hasDiscordBotToken` when one is stored; the provider keeps the configured value instead of planning a rewrite of the blank field. Set this to an empty string to clear a token this resource previously stored.",
 			Optional:            true,
 			Computed:            true,
 			Sensitive:           true,

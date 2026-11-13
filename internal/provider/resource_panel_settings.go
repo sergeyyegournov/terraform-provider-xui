@@ -152,7 +152,7 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 			Default:             booldefault.StaticBool(false),
 		},
 		"tg_bot_token": schema.StringAttribute{
-			MarkdownDescription: "Telegram bot token.",
+			MarkdownDescription: "Telegram bot token. The settings API redacts this and sets `hasTgBotToken` when one is stored; the provider keeps the configured value instead of planning a rewrite of the blank field. Set this to an empty string to clear a token this resource previously stored.",
 			Optional:            true,
 			Computed:            true,
 			Sensitive:           true,
@@ -239,7 +239,7 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 			Default:             stringdefault.StaticString(""),
 		},
 		"smtp_password": schema.StringAttribute{
-			MarkdownDescription: "SMTP password.",
+			MarkdownDescription: "SMTP password. The settings API redacts this and sets `hasSmtpPassword` when one is stored; the provider keeps the configured value instead of planning a rewrite of the blank field. Set this to an empty string to clear a password this resource previously stored.",
 			Optional:            true,
 			Computed:            true,
 			Sensitive:           true,
@@ -309,7 +309,7 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 			Default:             booldefault.StaticBool(false),
 		},
 		"two_factor_token": schema.StringAttribute{
-			MarkdownDescription: "Two-factor authentication secret / token.",
+			MarkdownDescription: "Two-factor authentication secret / token. The settings API redacts this and sets `hasTwoFactorToken` when one is stored; the provider keeps the configured value instead of planning a rewrite of the blank field. While two-factor authentication is enabled, the panel treats a blank submission as unchanged.",
 			Optional:            true,
 			Computed:            true,
 			Sensitive:           true,
@@ -354,7 +354,7 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 			Default:             stringdefault.StaticString(""),
 		},
 		"ldap_password": schema.StringAttribute{
-			MarkdownDescription: "LDAP bind password.",
+			MarkdownDescription: "LDAP bind password. The settings API redacts this and sets `hasLdapPassword` when one is stored; the provider keeps the configured value instead of planning a rewrite of the blank field. Set this to an empty string to clear a password this resource previously stored.",
 			Optional:            true,
 			Computed:            true,
 			Sensitive:           true,
@@ -1062,6 +1062,7 @@ func panelSettingsHasKey(m map[string]any, key string) bool {
 }
 
 func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSettingsModel) {
+	prior := *state
 	state.WebListen = types.StringValue(stringFromMap(m, "webListen"))
 	state.WebDomain = types.StringValue(stringFromMap(m, "webDomain"))
 	state.WebPort = types.Int64Value(int64FromMap(m, "webPort"))
@@ -1169,6 +1170,7 @@ func (r *panelSettingsResource) apiToModel(m map[string]any, state *panelSetting
 	state.WarpUpdateInterval = types.Int64Value(int64FromMap(m, "warpUpdateInterval"))
 	applyPanelSettingsV39(m, state)
 	applyPanelSettingsV311(m, state)
+	restoreRedactedPanelSecrets(m, state, &prior)
 }
 
 func assignOptionalString(m map[string]any, key string, dest *types.String, absentDefault string) {
@@ -1276,11 +1278,17 @@ func (r *panelSettingsResource) Update(ctx context.Context, req resource.UpdateR
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	var prior panelSettingsModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &prior)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	if err := validatePanelSettingsJSON(&plan); err != nil {
 		resp.Diagnostics.AddError("Invalid JSON", err.Error())
 		return
 	}
 	payload := r.modelToPayload(&plan)
+	applyPanelSecretClears(payload, &prior, &plan)
 	tflog.Info(ctx, "xui_panel_settings update prepared payload")
 	if err := r.client.UpdatePanelSettings(payload); err != nil {
 		resp.Diagnostics.AddError("API error", err.Error())
@@ -1290,7 +1298,9 @@ func (r *panelSettingsResource) Update(ctx context.Context, req resource.UpdateR
 	tflog.Info(ctx, "xui_panel_settings update restart_panel evaluated", map[string]any{
 		"restart_panel_value": plan.RestartPanel.ValueBool(),
 	})
-	if plan.RestartPanel.ValueBool() {
+	if plan.RestartPanel.ValueBool() && panelSettingsSecretRestoreOnly(prior, plan) {
+		tflog.Info(ctx, "xui_panel_settings update skipping panel restart; the only change restores redacted secrets into state")
+	} else if plan.RestartPanel.ValueBool() {
 		tflog.Info(ctx, "xui_panel_settings update attempting panel restart after settings apply")
 		if err := r.client.RestartPanel(); err != nil {
 			tflog.Error(ctx, "xui_panel_settings update panel restart failed", map[string]any{"error": err.Error()})

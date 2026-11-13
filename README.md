@@ -6,7 +6,7 @@ Requires a 3x-ui panel that exposes the v3 API (`/panel/api/*`, CSRF-protected s
 
 ## Panel compatibility
 
-This provider release (**v0.10.0**) is developed and acceptance-tested against **[3x-ui v3.11.0](https://github.com/MHSanaei/3x-ui/releases/tag/v3.11.0)**. Older panels from **v3.9.0+** still work for core resources. Attributes added in 3.10/3.11 stay optional on a 3.9 panel that omits them. Panels older than **v3.9.0** are not supported.
+This provider release (**v0.10.1**) is developed and acceptance-tested against **[3x-ui v3.11.0](https://github.com/MHSanaei/3x-ui/releases/tag/v3.11.0)**. Older panels from **v3.9.0+** still work for core resources. Attributes added in 3.10/3.11 stay optional on a 3.9 panel that omits them. Panels older than **v3.9.0** are not supported.
 
 ### 3.9–3.11 behavior
 

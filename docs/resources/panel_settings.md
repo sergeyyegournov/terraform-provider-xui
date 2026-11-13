@@ -54,7 +54,7 @@ resource "xui_panel_settings" "this" {
 - `discord_admin_ids` (String) Comma-separated Discord admin user ids (`discordAdminIds`).
 - `discord_bot_backup` (Boolean) Send panel backups to Discord (`discordBotBackup`).
 - `discord_bot_enable` (Boolean) Enable the Discord bot (`discordBotEnable`).
-- `discord_bot_token` (String, Sensitive) Discord bot token (`discordBotToken`).
+- `discord_bot_token` (String, Sensitive) Discord bot token (`discordBotToken`). The settings API redacts this and sets `hasDiscordBotToken` when one is stored; the provider keeps the configured value instead of planning a rewrite of the blank field. Set this to an empty string to clear a token this resource previously stored.
 - `discord_channel_id` (String) Discord channel id for bot messages (`discordChannelId`).
 - `discord_cpu` (Number) CPU percent that triggers a Discord alert (`discordCpu`).
 - `discord_enabled_events` (String) Comma-separated Discord notification events (`discordEnabledEvents`).
@@ -80,7 +80,7 @@ resource "xui_panel_settings" "this" {
 - `ldap_inbound_tags` (String) Inbound tags for LDAP-provisioned users.
 - `ldap_insecure_skip_verify` (Boolean) Skip TLS certificate verification for LDAP connections.
 - `ldap_invert_flag` (Boolean) Invert LDAP flag interpretation.
-- `ldap_password` (String, Sensitive) LDAP bind password.
+- `ldap_password` (String, Sensitive) LDAP bind password. The settings API redacts this and sets `hasLdapPassword` when one is stored; the provider keeps the configured value instead of planning a rewrite of the blank field. Set this to an empty string to clear a password this resource previously stored.
 - `ldap_port` (Number) LDAP server port.
 - `ldap_sync_cron` (String) Cron schedule for LDAP sync.
 - `ldap_truthy_values` (String) Comma-separated values treated as true for the flag field.
@@ -105,7 +105,7 @@ resource "xui_panel_settings" "this" {
 - `smtp_from_name` (String) SMTP From display name.
 - `smtp_host` (String) SMTP server host.
 - `smtp_memory` (Number) Memory usage threshold percentage for SMTP alerts.
-- `smtp_password` (String, Sensitive) SMTP password.
+- `smtp_password` (String, Sensitive) SMTP password. The settings API redacts this and sets `hasSmtpPassword` when one is stored; the provider keeps the configured value instead of planning a rewrite of the blank field. Set this to an empty string to clear a password this resource previously stored.
 - `smtp_port` (Number) SMTP server port.
 - `smtp_to` (String) SMTP recipient address(es).
 - `smtp_username` (String) SMTP username.
@@ -213,7 +213,7 @@ resource "xui_panel_settings" "this" {
 - `tg_bot_chat_id` (String) Telegram chat ID for notifications.
 - `tg_bot_enable` (Boolean) Enable Telegram bot notifications.
 - `tg_bot_proxy` (String) Proxy URL for Telegram bot.
-- `tg_bot_token` (String, Sensitive) Telegram bot token.
+- `tg_bot_token` (String, Sensitive) Telegram bot token. The settings API redacts this and sets `hasTgBotToken` when one is stored; the provider keeps the configured value instead of planning a rewrite of the blank field. Set this to an empty string to clear a token this resource previously stored.
 - `tg_cpu` (Number) CPU usage threshold percentage for Telegram alerts.
 - `tg_enabled_events` (String) Comma-separated Telegram notification events (e.g. `login.attempt,cpu.high`).
 - `tg_lang` (String) Telegram bot language.
@@ -223,7 +223,7 @@ resource "xui_panel_settings" "this" {
 - `traffic_diff` (Number) Traffic warning threshold percentage.
 - `trusted_proxy_cidrs` (String) Trusted reverse-proxy CIDRs used for forwarded headers.
 - `two_factor_enable` (Boolean) Enable two-factor authentication for the panel.
-- `two_factor_token` (String, Sensitive) Two-factor authentication secret / token.
+- `two_factor_token` (String, Sensitive) Two-factor authentication secret / token. The settings API redacts this and sets `hasTwoFactorToken` when one is stored; the provider keeps the configured value instead of planning a rewrite of the blank field. While two-factor authentication is enabled, the panel treats a blank submission as unchanged.
 - `warp_update_interval` (Number) WARP account update interval in hours (0 = disabled).
 - `web_base_path` (String) Base path for panel URLs (e.g. `/<uuid>/`).
 - `web_cert_file` (String) Path to SSL certificate file for the web panel.

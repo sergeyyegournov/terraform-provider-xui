@@ -58,6 +58,31 @@ func TestMergePanelSettingsPreservesServerOnlyFields(t *testing.T) {
 	}
 }
 
+func TestMergePanelSettingsKeepsSecretClearFlags(t *testing.T) {
+	t.Parallel()
+
+	merged := mergePanelSettings(
+		map[string]any{
+			"tgBotToken":    "",
+			"hasTgBotToken": true,
+			"webPort":       float64(2053),
+		},
+		map[string]any{
+			"tgBotToken":      "",
+			"clearTgBotToken": true,
+		},
+	)
+	if merged["clearTgBotToken"] != true {
+		t.Fatalf("clearTgBotToken = %#v, want true", merged["clearTgBotToken"])
+	}
+	if _, ok := merged["hasTgBotToken"]; ok {
+		t.Fatal("hasTgBotToken should be stripped from merged payload")
+	}
+	if merged["webPort"] != float64(2053) {
+		t.Fatalf("webPort = %#v, want preserved 2053", merged["webPort"])
+	}
+}
+
 func TestFormatAPIErrorIncludesValidationIssues(t *testing.T) {
 	t.Parallel()
 
